@@ -33,18 +33,17 @@ public class Tenant
         return tenant;
     }
 
-    public Tenant Update(string name, string email, string passwordHash)
+    public void Update(string name, string email, string passwordHash, bool isActive)
     {
 
-        var tenant = new Tenant
-        {
-            Name = name.Trim(),
-            Email = email.Trim().ToLowerInvariant(),
-            PasswordHash = passwordHash,
-            IsActive = true,
-            UpdatedAt = DateTime.UtcNow
-        };
-        return tenant;
+
+        Name = name.Trim();
+        Email = email.Trim().ToLowerInvariant();
+        PasswordHash = passwordHash;
+        IsActive = isActive;
+        UpdatedAt = DateTime.UtcNow;
+
+
     }
 
 }
