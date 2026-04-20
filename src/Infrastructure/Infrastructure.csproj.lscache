@@ -47,8 +47,8 @@ SolutionPath=<PATH>../../multi-tenant-stores-backend.slnx
 Caching/RedisCacheService.cs
 Dependencyinjection.cs
 Migrations/
- 20260412234501_InitialCreate.cs
- 20260412234501_InitialCreate.Designer.cs
+ 20260420092522_InitialCreate.cs
+ 20260420092522_InitialCreate.Designer.cs
  AppDbContextModelSnapshot.cs
 obj/Debug/net10.0/
  .NETCoreApp,Version=v10.0.AssemblyAttributes.cs
@@ -56,8 +56,12 @@ obj/Debug/net10.0/
  Infrastructure.GlobalUsings.g.cs
 Persistence/
  Appdbcontext.cs
- Configurations/Slideconfiguration.cs
- Repositories/Sliderepository.cs
+ Configurations/
+  Slideconfiguration.cs
+  TenantConfiguration.cs
+ Repositories/
+  Sliderepository.cs
+  TenantRepository.cs
 
 [metadataReferences]
 ../

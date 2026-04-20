@@ -6,7 +6,7 @@ obj/
 .vs/
 *.log
 
-
+.appsettings.*.json
 ## Environment
 appsettings.Production.json
 .env

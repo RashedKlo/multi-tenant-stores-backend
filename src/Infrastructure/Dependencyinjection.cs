@@ -27,6 +27,7 @@ public static class DependencyInjection
             options.UseNpgsql(dbUrl));
 
         services.AddScoped<ISlideRepository, SlideRepository>();
+        services.AddScoped<ITenantRepository, TenantRepository>();
 
         // ── Redis ──────────────────────────────────────────────
         // Converts Railway's redis:// URL to StackExchange format
