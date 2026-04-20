@@ -15,11 +15,11 @@ public class UpdatedTenantHandler(ITenantRepository repository, ICacheService ca
         if (dTenant is null) return null;
 
         dTenant.Update(
-              request.Name,
-              request.Email,
-              request.PasswordHash,
-              request.IsActive
-          );
+               request.Name,
+               request.Email,
+               request.PasswordHash,
+               request.IsActive
+           );
 
         repository.Update(dTenant);
         await repository.SaveChangesAsync(cancellationToken);
