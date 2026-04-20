@@ -35,15 +35,11 @@ public class Tenant
 
     public void Update(string name, string email, string passwordHash, bool isActive)
     {
-
-
         Name = name.Trim();
         Email = email.Trim().ToLowerInvariant();
         PasswordHash = passwordHash;
         IsActive = isActive;
         UpdatedAt = DateTime.UtcNow;
-
-
     }
 
 }
