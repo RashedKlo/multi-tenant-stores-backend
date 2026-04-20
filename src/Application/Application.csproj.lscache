@@ -15,7 +15,19 @@ primary
 lastDtbSucceeded
 
 [properties]
+AssemblyName=Application
+CommandLineArgsForDesignTimeEvaluation=-langversion:14.0 -define:TRACE
+CompilerGeneratedFilesOutputPath=
+MaxSupportedLangVersion=14.0
+ProjectAssetsFile=<PATH>obj/project.assets.json
+RootNamespace=Application
+RunAnalyzers=
+RunAnalyzersDuringLiveAnalysis=
 SolutionPath=<PATH>../../multi-tenant-stores-backend.slnx
+TargetFrameworkIdentifier=.NETCoreApp
+TargetPath=<PATH>bin/Debug/net10.0/Application.dll
+TargetRefPath=<PATH>obj/Debug/net10.0/ref/Application.dll
+TemporaryDependencyNodeTargetIdentifier=net10.0
 
 [commandLineArguments]
 /noconfig
@@ -71,6 +83,44 @@ Slides/
  Queries/GetSlideById/
   Getslidebyidhandler.cs
   Getslidebyidquery.cs
+Stores/Commands/CreateStore/
+ CreateStoreCommand.cs
+ CreateStoreHandler.cs
+ CreateStoreValidator.cs
+Stores/Commands/DeleteStore/
+ DeleteStoreCommand.cs
+ DeleteStoreHandler.cs
+Stores/Commands/UpdateStore/
+ UpdateStoreCommand.cs
+ UpdateStoreHandler.cs
+ UpdateStoreValidator.cs
+Stores/
+ DTOs/StoreDto.cs
+ Queries/GetAllStores/
+  GetAllStoresHandler.cs
+  GetAllStoresQuery.cs
+ Queries/GetStoreById/
+  GetStoreByIdHandler.cs
+  GetStoreByIdQuery.cs
+Tenants/Commands/CreateTenant/
+ CreateTenantCommand.cs
+ CreateTenantHandler.cs
+ CreateTenantValidator.cs
+Tenants/Commands/DeleteTenant/
+ DeleteTenantCommand.cs
+ DeleteTenantHandler.cs
+Tenants/Commands/UpdateTenant/
+ UpdateTenantCommand.cs
+ UpdateTenantHandler.cs
+ UpdateTenantValidator.cs
+Tenants/
+ DTOs/TenantDto.cs
+ Queries/GetAllTenants/
+  GetAllTenantsHandler.cs
+  GetAllTenantsQuery.cs
+ Queries/GetTenantById/
+  GetTenantByIdHandler.cs
+  GetTenantByIdQuery.cs
 
 [metadataReferences]
 ../Domain/obj/Debug/net10.0/ref/Domain.dll
