@@ -70,9 +70,11 @@ Persistence/
  Appdbcontext.cs
  Configurations/
   Slideconfiguration.cs
+  StoreConfiguration.cs
   TenantConfiguration.cs
  Repositories/
   Sliderepository.cs
+  StoreRepository.cs
   TenantRepository.cs
 
 [metadataReferences]
