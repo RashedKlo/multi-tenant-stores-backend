@@ -15,6 +15,9 @@ public class Tenant
 
     public bool IsDeleted => DeletedAt.HasValue;
 
+    // Navigation
+    public ICollection<Store> Stores { get; private set; } = new List<Store>();
+
     // EF Core needs this
     private Tenant() { }
 

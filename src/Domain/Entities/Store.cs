@@ -15,6 +15,7 @@ public class Store
 
     // Navigation
     public Tenant Tenant { get; private set; }
+    public ICollection<Department> Departments { get; private set; } = new List<Department>();
 
     private Store() { }
 

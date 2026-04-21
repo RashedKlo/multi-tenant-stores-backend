@@ -62,12 +62,15 @@ Entities/
  Slide.cs
  Store.cs
  Tenant.cs
+ User.cs
 Interfaces/
  IDepartmentRepository.cs
+ IJwtService.cs
  IProductRepository.cs
  ISlideRepository.cs
  IStoreRepository.cs
  ITenantRepository.cs
+ IUserRepository.cs
 obj/Debug/net10.0/
  .NETCoreApp,Version=v10.0.AssemblyAttributes.cs
  Domain.AssemblyInfo.cs
