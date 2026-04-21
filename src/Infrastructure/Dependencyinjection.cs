@@ -29,6 +29,8 @@ public static class DependencyInjection
         services.AddScoped<ISlideRepository, SlideRepository>();
         services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<IStoreRepository, StoreRepository>();
+        services.AddScoped<IDepartmentRepository, DepartmentRepository>();
+        services.AddScoped<IProductRepository, ProductRepository>();
 
         // ── Redis ──────────────────────────────────────────────
         // Converts Railway's redis:// URL to StackExchange format

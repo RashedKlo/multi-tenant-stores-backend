@@ -36,7 +36,7 @@ public class StoreConfiguration : IEntityTypeConfiguration<Store>
         builder.Property(s => s.UpdatedAt);
 
         builder.HasOne(s => s.Tenant)
-            .WithMany()
+            .WithMany(s => s.Stores)
             .HasForeignKey(s => s.TenantId)
             .OnDelete(DeleteBehavior.Cascade);
     }
