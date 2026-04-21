@@ -105,6 +105,9 @@ Products/
  Queries/GetProductById/
   GetProductByIdHandler.cs
   GetProductByIdQuery.cs
+ Queries/GetProductsByDepartmentId/
+  GetProductsByDepartmentIdHandler.cs
+  GetProductsByDepartmentIdQuery.cs
 Slides/Commands/CreateSlide/
  Createslidecommand.cs
  Createslidehandler.cs
