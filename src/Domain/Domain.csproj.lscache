@@ -57,10 +57,14 @@ TemporaryDependencyNodeTargetIdentifier=net10.0
 
 [sourceFiles]
 Entities/
+ Department.cs
+ Product.cs
  Slide.cs
  Store.cs
  Tenant.cs
 Interfaces/
+ IDepartmentRepository.cs
+ IProductRepository.cs
  ISlideRepository.cs
  IStoreRepository.cs
  ITenantRepository.cs
