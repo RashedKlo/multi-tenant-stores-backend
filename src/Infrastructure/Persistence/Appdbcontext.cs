@@ -10,6 +10,8 @@ public class AppDbContext : DbContext
     public DbSet<Slide> Slides => Set<Slide>();
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Store> Stores => Set<Store>();
+    public DbSet<Department> Departments => Set<Department>();
+    public DbSet<Product> Products => Set<Product>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
