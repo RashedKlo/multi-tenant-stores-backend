@@ -59,11 +59,52 @@ TemporaryDependencyNodeTargetIdentifier=net10.0
 Common/
  Behaviors/ValidationBehavior.cs
  Interfaces/ICacheService.cs
+Departments/Commands/CreateDepartment/
+ CreateDepartmentCommand.cs
+ CreateDepartmentHandler.cs
+ CreateDepartmentValidator.cs
+Departments/Commands/DeleteDepartment/
+ DeleteDepartmentCommand.cs
+ DeleteDepartmentHandler.cs
+Departments/Commands/UpdateDepartment/
+ UpdateDepartmentCommand.cs
+ UpdateDepartmentHandler.cs
+ UpdateDepartmentValidator.cs
+Departments/
+ DTOs/DepartmentDto.cs
+ Queries/GetAllDepartments/
+  GetAllDepartmentsHandler.cs
+  GetAllDepartmentsQuery.cs
+ Queries/GetDepartmentById/
+  GetDepartmentByIdHandler.cs
+  GetDepartmentByIdQuery.cs
+ Queries/GetDepartmentsByStoreId/
+  GetDepartmentsByStoreIdHandler.cs
+  GetDepartmentsByStoreIdQuery.cs
 Dependencyinjection.cs
 obj/Debug/net10.0/
  .NETCoreApp,Version=v10.0.AssemblyAttributes.cs
  Application.AssemblyInfo.cs
  Application.GlobalUsings.g.cs
+Products/Commands/CreateProduct/
+ CreateProductCommand.cs
+ CreateProductHandler.cs
+ CreateProductValidator.cs
+Products/Commands/DeleteProduct/
+ DeleteProductCommand.cs
+ DeleteProductHandler.cs
+Products/Commands/UpdateProduct/
+ UpdateProductCommand.cs
+ UpdateProductHandler.cs
+ UpdateProductValidator.cs
+Products/
+ DTOs/ProductDto.cs
+ Queries/GetAllProducts/
+  GetAllProductsHandler.cs
+  GetAllProductsQuery.cs
+ Queries/GetProductById/
+  GetProductByIdHandler.cs
+  GetProductByIdQuery.cs
 Slides/Commands/CreateSlide/
  Createslidecommand.cs
  Createslidehandler.cs

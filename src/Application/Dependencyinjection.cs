@@ -3,6 +3,10 @@ using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Application.Slides.Commands.CreateSlide;
 using Application.Slides.Commands.UpdateSlide;
+using Application.Stores.Commands.CreateStore;
+using Application.Stores.Commands.UpdateStore;
+using Application.Tenants.Commands.CreateTenant;
+using Application.Tenants.Commands.UpdateTenant;
 
 namespace Application;
 
@@ -16,9 +20,11 @@ public static class DependencyInjection
 
         // FluentValidation - scans all validators in this assembly
         services.AddValidatorsFromAssemblyContaining<CreateSlideValidator>();
-
         services.AddValidatorsFromAssemblyContaining<UpdateSlideValidator>();
-
+        services.AddValidatorsFromAssemblyContaining<CreateStoreValidator>();
+        services.AddValidatorsFromAssemblyContaining<UpdateStoreValidator>();
+        services.AddValidatorsFromAssemblyContaining<CreateTenantValidator>();
+        services.AddValidatorsFromAssemblyContaining<UpdateTenantValidator>();
 
         return services;
     }
