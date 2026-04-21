@@ -58,11 +58,13 @@ TemporaryDependencyNodeTargetIdentifier=net10.0
 
 [sourceFiles]
 Controllers/
+ AuthController.cs
  DepartmentsController.cs
  ProductsController.cs
  SlidesController.cs
  StoresController.cs
  TenantsController.cs
+ UsersController.cs
 obj/Debug/net10.0/
  .NETCoreApp,Version=v10.0.AssemblyAttributes.cs
  Api.AssemblyInfo.cs
@@ -75,11 +77,13 @@ Program.cs
  Domain/obj/Debug/net10.0/ref/Domain.dll
  Infrastructure/obj/Debug/net10.0/ref/Infrastructure.dll
 <NUGET>/
+ bcrypt.net-next/4.0.3/lib/net6.0/BCrypt.Net-Next.dll
  fluentvalidation.dependencyinjectionextensions/12.1.1/lib/net8.0/FluentValidation.DependencyInjectionExtensions.dll
  fluentvalidation/12.1.1/lib/net8.0/FluentValidation.dll
  humanizer.core/2.14.1/lib/net6.0/Humanizer.dll
  mediatr.contracts/2.0.1/lib/netstandard2.0/MediatR.Contracts.dll
  mediatr/14.1.0/lib/net10.0/MediatR.dll
+ microsoft.aspnetcore.authentication.jwtbearer/10.0.1/lib/net10.0/Microsoft.AspNetCore.Authentication.JwtBearer.dll
  microsoft.build.framework/18.0.2/ref/net10.0/Microsoft.Build.Framework.dll
  microsoft.codeanalysis.common/5.0.0/lib/net9.0/Microsoft.CodeAnalysis.dll
  microsoft.codeanalysis.csharp.workspaces/5.0.0/lib/net9.0/Microsoft.CodeAnalysis.CSharp.Workspaces.dll
@@ -96,6 +100,8 @@ Program.cs
  microsoft.identitymodel.abstractions/8.14.0/lib/net9.0/Microsoft.IdentityModel.Abstractions.dll
  microsoft.identitymodel.jsonwebtokens/8.14.0/lib/net9.0/Microsoft.IdentityModel.JsonWebTokens.dll
  microsoft.identitymodel.logging/8.14.0/lib/net9.0/Microsoft.IdentityModel.Logging.dll
+ microsoft.identitymodel.protocols.openidconnect/8.0.1/lib/net9.0/Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
+ microsoft.identitymodel.protocols/8.0.1/lib/net9.0/Microsoft.IdentityModel.Protocols.dll
  microsoft.identitymodel.tokens/8.14.0/lib/net9.0/Microsoft.IdentityModel.Tokens.dll
  microsoft.openapi/2.4.1/lib/net8.0/Microsoft.OpenApi.dll
  microsoft.visualstudio.solutionpersistence/1.0.52/lib/net8.0/Microsoft.VisualStudio.SolutionPersistence.dll
@@ -114,6 +120,7 @@ Program.cs
  system.composition.hosting/9.0.0/lib/net9.0/System.Composition.Hosting.dll
  system.composition.runtime/9.0.0/lib/net9.0/System.Composition.Runtime.dll
  system.composition.typedparts/9.0.0/lib/net9.0/System.Composition.TypedParts.dll
+ system.identitymodel.tokens.jwt/8.2.0/lib/net9.0/System.IdentityModel.Tokens.Jwt.dll
  system.io.hashing/10.0.2/lib/net10.0/System.IO.Hashing.dll
 C:/Program Files/dotnet/packs/Microsoft.AspNetCore.App.Ref/10.0.0/ref/net10.0/
  Microsoft.AspNetCore.Antiforgery.dll

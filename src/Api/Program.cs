@@ -51,7 +51,10 @@ if (app.Environment.IsDevelopment())
 app.UseCors("AllowLocalhost"); // Apply CORS policy
 app.UseRateLimiter();
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 
 
