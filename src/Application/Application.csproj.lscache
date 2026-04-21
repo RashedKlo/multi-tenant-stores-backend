@@ -165,10 +165,37 @@ Tenants/
  Queries/GetTenantById/
   GetTenantByIdHandler.cs
   GetTenantByIdQuery.cs
+Users/Commands/DeleteUser/
+ DeleteUserCommand.cs
+ DeleteUserCommandHandler.cs
+Users/Commands/Login/
+ LoginCommand.cs
+ LoginCommandHandler.cs
+ LoginCommandValidator.cs
+Users/Commands/Register/
+ RegisterCommand.cs
+ RegisterCommandHandler.cs
+ RegisterCommandValidator.cs
+Users/Commands/UpdateUser/
+ UpdateUserCommand.cs
+ UpdateUserCommandHandler.cs
+ UpdateUserCommandValidator.cs
+Users/
+ DTOs/UserDto.cs
+ Queries/GetAllUsers/
+  GetAllUsersHandler.cs
+  GetAllUsersQuery.cs
+ Queries/GetUserByEmail/
+  GetUserByEmailHandler.cs
+  GetUserByEmailQuery.cs
+ Queries/GetUserById/
+  GetUserByIdHandler.cs
+  GetUserByIdQuery.cs
 
 [metadataReferences]
 ../Domain/obj/Debug/net10.0/ref/Domain.dll
 <NUGET>/
+ bcrypt.net-next/4.0.3/lib/net6.0/BCrypt.Net-Next.dll
  fluentvalidation.dependencyinjectionextensions/12.1.1/lib/net8.0/FluentValidation.DependencyInjectionExtensions.dll
  fluentvalidation/12.1.1/lib/net8.0/FluentValidation.dll
  mediatr.contracts/2.0.1/lib/netstandard2.0/MediatR.Contracts.dll

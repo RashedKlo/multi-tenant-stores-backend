@@ -11,7 +11,7 @@ public class CreateTenantHandler(ITenantRepository tenantRepository, ICacheServi
 
     public async Task<TenantDto> Handle(CreateTenantCommand request, CancellationToken cancellationToken)
     {
-        var tenant = Tenant.Create(request.Name, request.Email, request.PasswordHash);
+        var tenant = Tenant.Create(request.Name, request.Email, BCrypt.Net.BCrypt.HashPassword(request.PasswordHash));
 
         await tenantRepository.AddAsync(tenant, cancellationToken);
         await tenantRepository.SaveChangesAsync(cancellationToken);

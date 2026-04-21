@@ -15,6 +15,9 @@ public class CreateTenantValidator : AbstractValidator<CreateTenantCommand>
             .EmailAddress().WithMessage("Invalid email format.");
 
         RuleFor(x => x.PasswordHash)
-            .NotEmpty().WithMessage("Password hash is required.");
+            .NotEmpty().WithMessage("Password hash is required.")
+             .MinimumLength(6).WithMessage("Password must be at least 6 characters")
+            .MaximumLength(255).WithMessage("Password must not exceed 255 characters");
+
     }
 }

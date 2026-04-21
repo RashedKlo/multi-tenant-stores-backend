@@ -7,6 +7,10 @@ using Application.Stores.Commands.CreateStore;
 using Application.Stores.Commands.UpdateStore;
 using Application.Tenants.Commands.CreateTenant;
 using Application.Tenants.Commands.UpdateTenant;
+using Application.Users.Commands.Register;
+using Application.Users.Commands.Login;
+using Application.Users.Commands.UpdateUser;
+using Application.Users.Commands.DeleteUser;
 
 namespace Application;
 
@@ -25,6 +29,9 @@ public static class DependencyInjection
         services.AddValidatorsFromAssemblyContaining<UpdateStoreValidator>();
         services.AddValidatorsFromAssemblyContaining<CreateTenantValidator>();
         services.AddValidatorsFromAssemblyContaining<UpdateTenantValidator>();
+        services.AddValidatorsFromAssemblyContaining<RegisterCommandValidator>();
+        services.AddValidatorsFromAssemblyContaining<LoginCommandValidator>();
+        services.AddValidatorsFromAssemblyContaining<UpdateUserCommandValidator>();
 
         return services;
     }
