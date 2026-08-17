@@ -3,6 +3,7 @@ using Application.Common.Behaviors;
 using Infrastructure;
 using MediatR;
 using Microsoft.AspNetCore.RateLimiting;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,9 +11,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddOpenApi();
 
 // CORS — allow Angular dev server
 builder.Services.AddCors(options =>
@@ -44,8 +46,9 @@ var app = builder.Build();
 // ── Middleware ─────────────────────────────────────────────
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.MapOpenApi();
+    app.MapScalarApiReference();
+    
 }
 
 app.UseCors("AllowLocalhost"); // Apply CORS policy

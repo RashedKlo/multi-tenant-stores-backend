@@ -8,7 +8,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=SlideSwiperDb;Username=postgres;Password=postgres
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=marketplace_db;Username=postgres;Password=postgres
       - ConnectionStrings__Redis=redis:6379
     depends_on:
       postgres:
@@ -16,7 +16,7 @@ services:
       redis:
         condition: service_healthy
 
-  # Optional: Run tests during build
+  # Optional: run tests during build / CI
   tests:
     build:
       context: .
@@ -27,23 +27,25 @@ services:
       redis:
         condition: service_healthy
     environment:
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=SlideSwiperDb;Username=postgres;Password=postgres
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=marketplace_db;Username=postgres;Password=postgres
       - ConnectionStrings__Redis=redis:6379
-    # Uncomment to run tests automatically
+    # Uncomment to run tests automatically:
     # command: dotnet test tests/Tests/Tests.csproj -c Release --no-build --logger "console;verbosity=normal"
 
   postgres:
-    image: postgres:16
+    image: postgres:18
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: SlideSwiperDb
+      POSTGRES_DB: marketplace_db
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      # Optional: auto-run your v3 schema on first start
+      # - ./scripts/multitenant_ecommerce_schema_v3.sql:/docker-entrypoint-initdb.d/01_schema.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d marketplace_db"]
       interval: 5s
       timeout: 5s
       retries: 5
