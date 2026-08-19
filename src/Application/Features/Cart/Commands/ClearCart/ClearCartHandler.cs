@@ -22,7 +22,7 @@ public class ClearCartHandler : IRequestHandler<ClearCartCommand, Result>
         if (cartResult.IsFailure)
             return Result.Success(); // already empty
 
-        var cart = cartResult.Value;
+        var cart = cartResult.Value!;
 
         var result = cart.ClearItems();
         if (result.IsFailure)

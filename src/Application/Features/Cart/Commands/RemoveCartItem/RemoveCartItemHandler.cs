@@ -23,7 +23,7 @@ public class RemoveCartItemHandler : IRequestHandler<RemoveCartItemCommand, Resu
         if (cartResult.IsFailure)
             return Result.Failure(cartResult.Errors);
 
-        var cart = cartResult.Value;
+        var cart = cartResult.Value!;
 
         var result = cart.RemoveItem(request.CartItemId);
         if (result.IsFailure)

@@ -21,7 +21,7 @@ public class AddCartItemHandler : IRequestHandler<AddCartItemCommand, Result>
         if (cartResult.IsFailure)
             return Result.Failure(cartResult.Errors);
 
-        var cart = cartResult.Value;
+        var cart = cartResult.Value!;
 
         var addResult = cart.AddItem(request.ProductId, request.Quantity, request.Notes, request.OptionIds);
         if (addResult.IsFailure)
@@ -43,7 +43,7 @@ public class AddCartItemHandler : IRequestHandler<AddCartItemCommand, Result>
             if (created.IsFailure)
                 return created;
 
-            await _repo.AddAsync(created.Value, ct);
+            await _repo.AddAsync(created.Value!, ct);
             return created;
         }
 
@@ -57,7 +57,7 @@ public class AddCartItemHandler : IRequestHandler<AddCartItemCommand, Result>
             if (created.IsFailure)
                 return created;
 
-            await _repo.AddAsync(created.Value, ct);
+            await _repo.AddAsync(created.Value!, ct);
             return created;
         }
 

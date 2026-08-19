@@ -22,7 +22,7 @@ public class UpdateCartItemHandler : IRequestHandler<UpdateCartItemCommand, Resu
         if (cartResult.IsFailure)
             return Result.Failure(cartResult.Errors);
 
-        var cart = cartResult.Value;
+        var cart = cartResult.Value!;
 
         var result = cart.UpdateItemQuantity(request.CartItemId, request.Quantity);
         if (result.IsFailure)

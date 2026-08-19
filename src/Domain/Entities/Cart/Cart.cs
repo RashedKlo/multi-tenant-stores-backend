@@ -85,7 +85,7 @@ namespace Domain.Entities
             if (itemResult.IsFailure)
                 return Result.Failure(itemResult.Errors);
 
-            var item = itemResult.Value;
+            var item = itemResult.Value!;
 
             if (optionIds is not null)
             {
@@ -95,7 +95,7 @@ namespace Domain.Entities
                     if (optResult.IsFailure)
                         return Result.Failure(optResult.Errors);
 
-                    item.AddOption(optResult.Value);
+                    item.AddOption(optResult.Value!);
                 }
             }
 

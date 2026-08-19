@@ -23,6 +23,14 @@ public static class RepositoryServiceCollectionExtensions
         services.AddScoped<IDiscountRepository, DiscountRepository>();
         services.AddScoped<IDiscountProductRepository, DiscountProductRepository>();
         services.AddScoped<IDiscountSectionRepository, DiscountSectionRepository>();
+        services.AddScoped<ICartRepository, CartRepository>();
+services.AddScoped<ICustomerRepository, CustomerRepository>();
+services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+services.AddScoped<ICustomerAddressRepository, CustomerAddressRepository>();
+services.AddScoped<IGuestSessionRepository, GuestSessionRepository>();
+services.AddScoped<IFavoriteStoreRepository, FavoriteStoreRepository>();
+services.AddScoped<IFavoriteProductRepository, FavoriteProductRepository>();
+        
 
         return services;
     }

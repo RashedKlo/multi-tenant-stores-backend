@@ -6,9 +6,10 @@ obj/
 .vs/
 *.log
 
-.appsettings.*.json
-## Environment
-appsettings.Production.json
+## Environment / secrets
+appsettings.json
+appsettings.*.json
+!appsettings.example.json
 .env
 
 ## Docker
