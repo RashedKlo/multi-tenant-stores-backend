@@ -5,6 +5,16 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Application.Common.Models;
 using Application.Auth.DTOs;
+using Application.Auth.Commands.CreateGuestSession;
+using Application.Auth.Commands.ForgotPassword;
+using Application.Auth.Commands.GoogleLogin;
+using Application.Auth.Commands.Login;
+using Application.Auth.Commands.Logout;
+using Application.Auth.Commands.ResendVerification;
+using Application.Auth.Commands.ResetPassword;
+using Application.Auth.Commands.VerifyEmail;
+using Application.Auth.Commands.RefreshToken;
+using Application.Auth.Commands.Register;
 
 // adjust namespaces to match your project
 

@@ -16,4 +16,9 @@ public interface ICurrentUserService
     /// The authenticated customer's id, or null when the request is anonymous.
     /// </summary>
     Guid? CustomerId { get; }
+
+    /// <summary>
+    /// The active guest session id, or null when the request is not bound to a guest cart.
+    /// </summary>
+    Guid? GuestSessionId { get; }
 }

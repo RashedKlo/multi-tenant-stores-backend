@@ -1,7 +1,7 @@
-using Application.Common.Exceptions;
 using Application.Common.Interfaces;
 using Google.Apis.Auth;
 using Infrastructure.Settings;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -39,7 +39,7 @@ public class GoogleTokenVerifier(
         catch (InvalidJwtException ex)
         {
             logger.LogWarning(ex, "Google ID token validation failed");
-            throw new ForbiddenException("Invalid or expired Google ID token.");
+            throw;
         }
     }
 }

@@ -25,7 +25,7 @@ public class RedisCacheService(IConnectionMultiplexer redis) : ICacheService
         CancellationToken cancellationToken = default)
     {
         var json = JsonSerializer.Serialize(value, JsonOptions);
-        await Db.StringSetAsync(key, json, expiry);
+        // await Db.StringSetAsync(key, json, expiry);
     }
 
     public Task RemoveAsync(string key, CancellationToken cancellationToken = default) =>
