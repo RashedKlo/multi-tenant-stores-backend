@@ -14,8 +14,12 @@ public class GetAddressesHandler(
     public async Task<Result<List<AddressDto>>> Handle(
         GetAddressesQuery request, CancellationToken cancellationToken)
     {
+        if (!currentUser.IsAuthenticated || currentUser.CustomerId is null)
+            return Result<List<AddressDto>>.Failure(Error.Unauthorized("Customer.Unauthorized", "Customer must be authenticated."));
+        var customerId = currentUser.CustomerId.Value;
+
         var addresses = await repository.GetByCustomerIdAsync(
-            currentUser.CustomerId!.Value, cancellationToken);
+            customerId, cancellationToken);
 
         var dtos = addresses.Select(AddressDto.FromEntity).ToList();
         return Result<List<AddressDto>>.Success(dtos);

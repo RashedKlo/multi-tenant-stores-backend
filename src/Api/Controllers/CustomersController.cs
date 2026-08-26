@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Application.Customers.Commands.UpdateProfile;
 using Application.Customers.Commands.ChangePassword;
+using Application.Customers.Queries.GetMe;
 using Application.Customers.DTOs;
 
 namespace Api.Controllers;
@@ -11,6 +12,10 @@ namespace Api.Controllers;
 [Route("api")]
 public class CustomersController(IMediator mediator) : ApiControllerBase
 {
+    [HttpGet("customers/me")]
+    public async Task<ActionResult<CustomerDto>> GetMe(CancellationToken ct) =>
+        HandleResult(await mediator.Send(new GetMeQuery(), ct));
+
     [HttpPut("customers/me")]
     public async Task<ActionResult<CustomerDto>> UpdateProfile(
         [FromBody] UpdateProfileCommand command, CancellationToken ct) =>

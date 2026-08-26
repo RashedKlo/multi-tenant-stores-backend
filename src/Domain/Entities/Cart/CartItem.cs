@@ -16,7 +16,7 @@ namespace Domain.Entities
         public Cart Cart { get; private set; } = null!;
         public Product Product { get; private set; } = null!;
 
-    public ICollection<CartItemOption> CartItemOptions => new List<CartItemOption>();
+public ICollection<CartItemOption> CartItemOptions { get; private set; } = new List<CartItemOption>();
 
         private CartItem() { }
 

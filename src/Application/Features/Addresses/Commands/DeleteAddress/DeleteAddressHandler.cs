@@ -13,7 +13,9 @@ public class DeleteAddressHandler(
     public async Task<Result<bool>> Handle(
         DeleteAddressCommand request, CancellationToken cancellationToken)
     {
-        var customerId = currentUser.CustomerId!.Value;
+        if (!currentUser.IsAuthenticated || currentUser.CustomerId is null)
+            return Result<bool>.Failure(Error.Unauthorized("Customer.Unauthorized", "Customer must be authenticated."));
+        var customerId = currentUser.CustomerId.Value;
 
         var address = await repository.GetByIdForCustomerAsync(request.Id, customerId, cancellationToken);
         if (address is null 

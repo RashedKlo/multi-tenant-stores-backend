@@ -78,9 +78,20 @@ public class CustomerAddressRepository : ICustomerAddressRepository
 
     public Task<CustomerAddress?> GetDefaultByCustomerIdAsync(Guid customerId, CancellationToken cancellationToken = default) =>
         _context.CustomerAddresses
-            .AsNoTracking()
             .FirstOrDefaultAsync(a => a.CustomerId == customerId && a.IsDefault && a.DeletedAt == null, cancellationToken);
-
+// Implementation
+public async Task UnsetDefaultForCustomerAsync(
+    Guid customerId, Guid exceptAddressId, CancellationToken ct = default)
+{
+    await _context.CustomerAddresses
+        .Where(a => a.CustomerId == customerId
+                 && a.IsDefault
+                 && a.Id != exceptAddressId
+                 && a.DeletedAt == null)
+        .ExecuteUpdateAsync(s => s
+            .SetProperty(a => a.IsDefault, false)
+            .SetProperty(a => a.UpdatedAt, DateTime.UtcNow), ct);
+}
     public void Add(CustomerAddress address) => _context.CustomerAddresses.Add(address);
     public void Update(CustomerAddress address) => _context.CustomerAddresses.Update(address);
     public void Delete(CustomerAddress address) => _context.CustomerAddresses.Remove(address); // service sets DeletedAt, then calls Update — see interface note

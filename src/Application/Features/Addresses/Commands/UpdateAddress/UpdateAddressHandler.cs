@@ -17,8 +17,12 @@ public class UpdateAddressHandler(
     public async Task<Result<AddressDto>> Handle(
         UpdateAddressCommand request, CancellationToken cancellationToken)
     {
+        if (!currentUser.IsAuthenticated || currentUser.CustomerId is null)
+            return Result<AddressDto>.Failure(Error.Unauthorized("Customer.Unauthorized", "Customer must be authenticated."));
+        var customerId = currentUser.CustomerId.Value;
+
         var address = await repository.GetByIdForCustomerAsync(
-            request.Id, currentUser.CustomerId!.Value, cancellationToken);
+            request.Id, customerId, cancellationToken);
         if (address is null || address.IsDeleted)
             return Result<AddressDto>.Failure(Error.NotFound("Address.NotFound", "Address not found"));
 

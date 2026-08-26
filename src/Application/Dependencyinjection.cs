@@ -1,3 +1,4 @@
+using Application.Common.Behaviors;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,14 +11,13 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-        // MediatR - scans all handlers in this assembly
-        services.AddMediatR(cfg =>
-            cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly));
+services.AddMediatR(cfg =>
+{
+    cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly);
+    cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
+});
 
-        // FluentValidation - scans all validators in this assembly
-
-        services.AddValidatorsFromAssemblyContaining(typeof(DependencyInjection));
-
+services.AddValidatorsFromAssemblyContaining(typeof(DependencyInjection));
         return services;
     }
 }

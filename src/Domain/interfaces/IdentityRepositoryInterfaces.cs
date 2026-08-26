@@ -35,7 +35,8 @@ public interface ICustomerAddressRepository
     // Enforces the ownership check at the query level too (belt-and-suspenders
     // alongside the composite FK on orders) — pass the caller's own customerId.
     Task<CustomerAddress?> GetByIdForCustomerAsync(Guid id, Guid customerId, CancellationToken cancellationToken = default);
-
+// ICustomerAddressRepository
+Task UnsetDefaultForCustomerAsync(Guid customerId, Guid exceptAddressId, CancellationToken ct = default);
     Task<List<CustomerAddress>> GetByCustomerIdAsync(Guid customerId, CancellationToken cancellationToken = default);
     Task<CustomerAddress?> GetDefaultByCustomerIdAsync(Guid customerId, CancellationToken cancellationToken = default);
 

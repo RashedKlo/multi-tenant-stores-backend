@@ -11,21 +11,32 @@ public class SetDefaultAddressHandler(
     ICurrentUserService currentUser)
     : IRequestHandler<SetDefaultAddressCommand, Result<AddressDto>>
 {
-    public async Task<Result<AddressDto>> Handle(
-        SetDefaultAddressCommand request, CancellationToken cancellationToken)
-    {
-        var customerId = currentUser.CustomerId!.Value;
+  public async Task<Result<AddressDto>> Handle(
+    SetDefaultAddressCommand request, CancellationToken cancellationToken)
+{
+    if (!currentUser.IsAuthenticated || currentUser.CustomerId is null)
+        return Result<AddressDto>.Failure(
+            Error.Unauthorized("Customer.Unauthorized", "Customer must be authenticated."));
 
-        var target = await repository.GetByIdForCustomerAsync(request.Id, customerId, cancellationToken);
-        if (target is null || target.IsDeleted)
-            return Result<AddressDto>.Failure(Error.NotFound("Address.NotFound", "Address not found"));
-        if (target.IsDefault)
-            return Result<AddressDto>.Success(AddressDto.FromEntity(target)); // already default — no-op
+    var customerId = currentUser.CustomerId.Value;
 
-        target.SetAsDefault();
-        repository.Update(target);
-        await repository.SaveChangesAsync(cancellationToken);
+    var target = await repository.GetByIdForCustomerAsync(
+        request.Id, customerId, cancellationToken);
 
+    if (target is null || target.IsDeleted)
+        return Result<AddressDto>.Failure(
+            Error.NotFound("Address.NotFound", "Address not found"));
+
+    // Already default → no-op
+    if (target.IsDefault)
         return Result<AddressDto>.Success(AddressDto.FromEntity(target));
-    }
+await repository.UnsetDefaultForCustomerAsync(customerId, target.Id, cancellationToken);
+
+    // 2. Now set the new default
+    target.SetAsDefault();
+    repository.Update(target);
+    await repository.SaveChangesAsync(cancellationToken);
+
+    return Result<AddressDto>.Success(AddressDto.FromEntity(target));
+}
 }

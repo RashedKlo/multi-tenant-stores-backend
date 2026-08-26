@@ -8,11 +8,13 @@ using Application.Addresses.Queries.GetAddressById;
 using Application.Addresses.Queries.GetAddresses;
 using Application.Addresses.DTOs;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Api.Controllers;
 
 [ApiController]
 [EnableRateLimiting("fixed")]
+[Authorize]
 [Route("api/addresses")]
 public class AddressesController(IMediator mediator) : ApiControllerBase
 {

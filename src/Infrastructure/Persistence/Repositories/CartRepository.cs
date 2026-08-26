@@ -24,7 +24,7 @@ public class CartRepository : ICartRepository
         return _context.Carts
             .Include(c => c.CartItems)
                 .ThenInclude(ci => ci.CartItemOptions)   // was missing — AddItem's OptionsMatch needs this
-            .AsSplitQuery()                              // avoids a cartesian-product join across two collections
+            .AsTracking()                              // avoids a cartesian-product join across two collections
             .FirstOrDefaultAsync(predicate, ct);
     }
 

@@ -15,8 +15,7 @@ namespace Domain.Entities
         public GuestSession? GuestSession { get; private set; }
         public Store? Store { get; private set; }
 
-       public ICollection<CartItem> CartItems=>new List<CartItem>();
-
+public ICollection<CartItem> CartItems { get; private set; } = new List<CartItem>();
 
         private Cart() { }
 

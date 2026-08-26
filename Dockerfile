@@ -12,7 +12,7 @@ COPY ["src/Infrastructure/Infrastructure.csproj", "Infrastructure/"]
 
 RUN dotnet restore "Api/Api.csproj"
 
-COPY src/ .                 # fixed
+COPY src/ .
 
 RUN dotnet build "Api/Api.csproj" -c Release -o /app/build
 

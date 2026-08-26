@@ -16,7 +16,10 @@ public class CreateAddressHandler(
     public async Task<Result<AddressDto>> Handle(
         CreateAddressCommand request, CancellationToken cancellationToken)
     {
-        var customerId = currentUser.CustomerId!.Value;
+    if (!currentUser.IsAuthenticated || currentUser.CustomerId is null)
+            return Result<AddressDto>.Failure(Error.Unauthorized("Customer.Unauthorized", "Customer must be authenticated."));
+        var customerId = currentUser.CustomerId.Value;
+
         var address = CustomerAddress.Create(
             customerId,
             request.Label,
