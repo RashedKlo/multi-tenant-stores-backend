@@ -161,13 +161,13 @@ namespace Infrastructure.Persistence.Configurations
                 .HasDatabaseName("uq_products_barcode");
 
             // Relationships
-            builder.HasOne<StoreSection>()
-                .WithMany()
+            builder.HasOne(x=>x.Section)
+                .WithMany(x=>x.Products)
                 .HasForeignKey(x => x.SectionId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            builder.HasOne<Store>()
-                .WithMany()
+            builder.HasOne(x=>x.Store)
+                .WithMany(x=>x.Products)
                 .HasForeignKey(x => x.StoreId)
                 .OnDelete(DeleteBehavior.Cascade);
         }

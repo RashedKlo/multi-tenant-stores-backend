@@ -2,14 +2,26 @@ using Domain.Common;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
-// Namespace/folder is a guess based on your DiscoveryController — rename to match
-// your actual API project if it differs.
+
 public abstract class ApiControllerBase : ControllerBase
 {
     /// <summary>
+    /// Unwraps a Result&lt;T&gt;: 200 OK with the value on success,
+    /// or the mapped ProblemDetails response on failure.
+    /// </summary>
+    protected ActionResult<T> HandleResult<T>(Result<T> result) =>
+        result.IsSuccess ? Ok(result.Value) : HandleFailure(result);
+
+    /// <summary>
+    /// Unwraps a Result with no value: 204 No Content on success,
+    /// or the mapped ProblemDetails response on failure.
+    /// </summary>
+    protected ActionResult HandleResult(Result result) =>
+        result.IsSuccess ? NoContent() : HandleFailure(result);
+
+    /// <summary>
     /// Maps a failed Result to the matching ProblemDetails + HTTP status.
-    /// Call only when result.IsFailure — e.g.
-    /// <c>return result.IsSuccess ? Ok(result.Value) : HandleFailure(result);</c>
+    /// Only called internally by HandleResult once IsFailure is confirmed.
     /// </summary>
     protected ActionResult HandleFailure(Result result)
     {
@@ -32,6 +44,7 @@ public abstract class ApiControllerBase : ControllerBase
             ErrorType.NotFound => NotFound(problem),
             ErrorType.Conflict => Conflict(problem),
             ErrorType.Unauthorized => Unauthorized(problem),
+            ErrorType.Forbidden => StatusCode(StatusCodes.Status403Forbidden, problem),
             _ => BadRequest(problem) // Validation and Failure both surface as 400
         };
     }

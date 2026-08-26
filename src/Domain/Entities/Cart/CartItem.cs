@@ -1,3 +1,4 @@
+using System.Globalization;
 using Domain.Common;
 
 namespace Domain.Entities
@@ -15,8 +16,7 @@ namespace Domain.Entities
         public Cart Cart { get; private set; } = null!;
         public Product Product { get; private set; } = null!;
 
-        private readonly List<CartItemOption> _cartItemOptions = new();
-        public IReadOnlyCollection<CartItemOption> CartItemOptions => _cartItemOptions.AsReadOnly();
+    public ICollection<CartItemOption> CartItemOptions => new List<CartItemOption>();
 
         private CartItem() { }
 
@@ -68,6 +68,6 @@ namespace Domain.Entities
             return Result.Success();
         }
 
-        internal void AddOption(CartItemOption option) => _cartItemOptions.Add(option);
+        internal void AddOption(CartItemOption option) => CartItemOptions.Add(option);
     }
 }

@@ -19,6 +19,8 @@ namespace Domain.Entities
         public int DisplayOrder { get; private set; }
 
         public bool IsActive { get; private set; }
+public Module Module { get; private set; } = null!;
+
 
         private ModuleBanner()
         {

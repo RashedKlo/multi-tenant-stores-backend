@@ -43,8 +43,10 @@ public record ModuleDetailDto(
     List<ModuleBannerDto> Banners,
     List<CategoryDto> Categories)
 {
-    public static ModuleDetailDto FromEntity(Domain.Entities.Module m) =>
-        new(m.Id, m.NameEn, m.NameAr, m.IconUrl, new List<ModuleBannerDto>(), new List<CategoryDto>());
+    public static ModuleDetailDto FromEntity(Domain.Entities.Module m,List<Domain.Entities.ModuleBanner> banners,List<Domain.Entities.Category> categories) =>
+        new(m.Id, m.NameEn, m.NameAr, m.IconUrl,
+         banners.Select(banner=>ModuleBannerDto.FromEntity(banner)).ToList(),
+         categories.Select(categorie=>CategoryDto.FromEntity(categorie)).ToList());
 }
 
 

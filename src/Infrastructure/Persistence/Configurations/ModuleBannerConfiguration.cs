@@ -71,10 +71,10 @@ namespace Infrastructure.Persistence.Configurations
             builder.HasIndex(x => x.ModuleId)
                 .HasDatabaseName("idx_module_banners_module_id");
 
-            builder.HasOne<Module>()
-                .WithMany()
-                .HasForeignKey(x => x.ModuleId)
-                .OnDelete(DeleteBehavior.Cascade);
+           builder.HasOne(b => b.Module)
+    .WithMany(m => m.ModuleBanners)
+    .HasForeignKey(b => b.ModuleId)
+    .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

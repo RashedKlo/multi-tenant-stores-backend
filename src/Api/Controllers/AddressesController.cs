@@ -7,46 +7,49 @@ using Application.Addresses.Commands.UpdateAddress;
 using Application.Addresses.Queries.GetAddressById;
 using Application.Addresses.Queries.GetAddresses;
 using Application.Addresses.DTOs;
-// ============================================================
-// 2. AddressesController
-// ============================================================
+using Microsoft.AspNetCore.RateLimiting;
+
+namespace Api.Controllers;
+
 [ApiController]
-[Route("api")]
-public class AddressesController(IMediator mediator) : ControllerBase
+[EnableRateLimiting("fixed")]
+[Route("api/addresses")]
+public class AddressesController(IMediator mediator) : ApiControllerBase
 {
-    [HttpGet("addresses")]
+    [HttpGet]
     public async Task<ActionResult<List<AddressDto>>> GetAddresses(CancellationToken ct) =>
-        Ok(await mediator.Send(new GetAddressesQuery(), ct));
+        HandleResult(await mediator.Send(new GetAddressesQuery(), ct));
 
-    [HttpPost("addresses")]
-    public async Task<ActionResult<AddressDto>> Create(
-        [FromBody] CreateAddressCommand command, CancellationToken ct) =>
-        Ok(await mediator.Send(command, ct));
-
-    [HttpGet("addresses/{id:guid}")]
+    [HttpGet("{id:guid}")]
     public async Task<ActionResult<AddressDto>> GetById(Guid id, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetAddressByIdQuery(id), ct));
+        HandleResult(await mediator.Send(new GetAddressByIdQuery(id), ct));
 
-    [HttpPut("addresses/{id:guid}")]
+    [HttpPost]
+    public async Task<ActionResult<AddressDto>> Create(
+        [FromBody] CreateAddressCommand command, CancellationToken ct)
+    {
+        var result = await mediator.Send(command, ct);
+
+        if (result.IsFailure)
+            return HandleFailure(result);
+
+        // RESTful: 201 Created with Location header pointing at the new resource
+        return CreatedAtAction(
+            nameof(GetById),
+            new { id = result.Value!.Id },
+            result.Value);
+    }
+
+    [HttpPut("{id:guid}")]
     public async Task<ActionResult<AddressDto>> Update(
-        Guid id, [FromBody] UpdateAddressCommand command, CancellationToken ct)
-    {
-        // ensure route id wins over any id in body
-        command = command with { Id = id };
-        return Ok(await mediator.Send(command, ct));
-    }
+        Guid id, [FromBody] UpdateAddressCommand command, CancellationToken ct) =>
+        HandleResult(await mediator.Send(command with { Id = id }, ct));
 
-    [HttpDelete("addresses/{id:guid}")]
-    public async Task<ActionResult> Delete(Guid id, CancellationToken ct)
-    {
-        await mediator.Send(new DeleteAddressCommand(id), ct);
-        return NoContent();
-    }
+    [HttpDelete("{id:guid}")]
+    public async Task<ActionResult<bool>> Delete(Guid id, CancellationToken ct) =>
+        HandleResult(await mediator.Send(new DeleteAddressCommand(id), ct));
 
-    [HttpPost("addresses/{id:guid}/set-default")]
-    public async Task<ActionResult> SetDefault(Guid id, CancellationToken ct)
-    {
-        await mediator.Send(new SetDefaultAddressCommand(id), ct);
-        return NoContent();
-    }
+    [HttpPost("{id:guid}/set-default")]
+    public async Task<ActionResult<AddressDto>> SetDefault(Guid id, CancellationToken ct) =>
+        HandleResult(await mediator.Send(new SetDefaultAddressCommand(id), ct));
 }

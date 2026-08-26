@@ -1,3 +1,4 @@
+// Application/Auth/Commands/ResendVerification/ResendVerificationValidator.cs
 using FluentValidation;
 
 namespace Application.Auth.Commands.ResendVerification;
@@ -8,10 +9,10 @@ public class ResendVerificationValidator : AbstractValidator<ResendVerificationC
     {
         RuleFor(x => x.Email)
             .NotEmpty()
-            .WithErrorCode("Email.Required")
-            .WithMessage("Email is required.")
+                .WithErrorCode("Email.Required")
+                .WithMessage("Email is required.")
             .EmailAddress()
-            .WithErrorCode("Email.Invalid")
-            .WithMessage("Email must be a valid email address.");
+                .WithErrorCode("Email.Invalid")
+                .WithMessage("Email is not a valid email address.");
     }
 }

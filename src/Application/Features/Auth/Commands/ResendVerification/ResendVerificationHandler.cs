@@ -1,7 +1,9 @@
+// Application/Auth/Commands/ResendVerification/ResendVerificationHandler.cs
 using Application.Common.Interfaces;
 using Domain.Common;
 using Domain.Interfaces;
 using MediatR;
+using System.Security.Cryptography;
 
 namespace Application.Auth.Commands.ResendVerification;
 
@@ -16,15 +18,19 @@ public class ResendVerificationHandler(
     public async Task<Result> Handle(
         ResendVerificationCommand request, CancellationToken cancellationToken)
     {
-        var customer = await customerRepository.GetByEmailAsync(request.Email, cancellationToken);
+        var email = request.Email.Trim().ToLowerInvariant();
 
-        // Silent no-op if the email doesn't exist or is already verified —
-        // never let this endpoint confirm which emails have accounts.
+        var customer = await customerRepository.GetByEmailAsync(email, cancellationToken);
+
+        // Silent success when the account doesn't exist or is already verified —
+        // the response must never reveal which emails have accounts.
         if (customer is null || customer.IsEmailVerified)
             return Result.Success();
 
-        // Rate-limit this in the API layer before production.
-        var code = Random.Shared.Next(100_000, 999_999).ToString();
+        // 🔐 Random.Shared is NOT cryptographically secure.
+        // A predictable code generator undermines the whole 6-digit scheme.
+        var code = RandomNumberGenerator.GetInt32(100_000, 1_000_000).ToString();
+
         await codeStore.StoreCodeAsync(customer.Email, code, CodeTtl, cancellationToken);
         await emailService.SendVerificationCodeAsync(customer.Email, code, cancellationToken);
 

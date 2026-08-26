@@ -25,13 +25,13 @@ namespace Infrastructure.Persistence.Configurations
             builder.HasIndex(x => x.SectionId)
                 .HasDatabaseName("idx_discount_sections_section_id");
 
-            builder.HasOne<Discount>()
-                .WithMany()
+         builder.HasOne(x=>x.Discount)
+                .WithMany(x=>x.DiscountSections)
                 .HasForeignKey(x => x.DiscountId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            builder.HasOne<StoreSection>()
-                .WithMany()
+            builder.HasOne(x=>x.Section)
+                .WithMany(x=>x.DiscountSections)
                 .HasForeignKey(x => x.SectionId)
                 .OnDelete(DeleteBehavior.Cascade);
         }

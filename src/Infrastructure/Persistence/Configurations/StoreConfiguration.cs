@@ -161,13 +161,13 @@ namespace Infrastructure.Persistence.Configurations
                 .HasDatabaseName("idx_stores_module_id");
 
             // Relationships
-            builder.HasOne<Tenant>()
-                .WithMany()
+            builder.HasOne(m=>m.Tenant)
+                .WithMany(s=>s.Stores)
                 .HasForeignKey(x => x.TenantId)
                 .OnDelete(DeleteBehavior.Cascade);
-
-            builder.HasOne<Module>()
-                .WithMany()
+  
+            builder.HasOne(m=>m.Module)
+                .WithMany(s=>s.Stores)
                 .HasForeignKey(x => x.ModuleId)
                 .OnDelete(DeleteBehavior.Restrict);
         }

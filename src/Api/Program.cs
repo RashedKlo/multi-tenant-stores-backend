@@ -1,3 +1,4 @@
+using System.Threading.RateLimiting;
 using Application;
 using Application.Common.Behaviors;
 using Infrastructure;
@@ -27,22 +28,60 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod()
     );
 });
-// Rate limiting — 30 requests per minute per client
+builder.Services.AddMiniProfiler(options =>
+{
+    options.RouteBasePath = "/profiler";
+    options.ColorScheme = StackExchange.Profiling.ColorScheme.Dark;
+}).AddEntityFramework();
+
+
+
 builder.Services.AddRateLimiter(options =>
 {
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.AddFixedWindowLimiter("fixed", opt =>
     {
         opt.PermitLimit = 30;          // max 30 requests
         opt.Window = TimeSpan.FromMinutes(1); // per 1 minute
         opt.QueueLimit = 0;            // no queuing
     });
-    options.RejectionStatusCode = 429; // Too Many Requests
+    options.AddPolicy("auth-login", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            PartitionKey(ctx), _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10, Window = TimeSpan.FromMinutes(15)
+            }));
+
+    options.AddPolicy("auth-email", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            PartitionKey(ctx), _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 3, Window = TimeSpan.FromMinutes(10)
+            }));
+
+    options.AddPolicy("auth-code", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            PartitionKey(ctx), _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5, Window = TimeSpan.FromMinutes(10)
+            }));
+
+    options.AddPolicy("auth-general", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            PartitionKey(ctx), _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30, Window = TimeSpan.FromMinutes(10)
+            }));
 });
+
+static string PartitionKey(HttpContext ctx) =>
+    ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
 // Global validation behavior using MediatR pipeline
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
 var app = builder.Build();
-
+app.UseMiniProfiler();
 // ── Middleware ─────────────────────────────────────────────
 if (app.Environment.IsDevelopment())
 {
@@ -54,6 +93,7 @@ if (app.Environment.IsDevelopment())
 app.UseCors("AllowLocalhost"); // Apply CORS policy
 app.UseRateLimiter();
 app.UseHttpsRedirection();
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 

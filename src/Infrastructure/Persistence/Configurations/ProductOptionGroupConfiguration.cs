@@ -112,8 +112,8 @@ namespace Infrastructure.Persistence.Configurations
             builder.HasIndex(x => x.ProductId)
                 .HasDatabaseName("idx_product_option_groups_product_id");
 
-            builder.HasOne<Product>()
-                .WithMany()
+            builder.HasOne(x=>x.Product)
+                .WithMany(x=>x.OptionGroups)
                 .HasForeignKey(x => x.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
         }

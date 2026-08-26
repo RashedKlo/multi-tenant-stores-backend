@@ -98,8 +98,8 @@ namespace Infrastructure.Persistence.Configurations
                 .HasFilter("is_default = true AND deleted_at IS NULL")
                 .HasDatabaseName("uq_customer_addresses_one_default");
 
-            builder.HasOne<Customer>()
-                .WithMany()
+            builder.HasOne(x=>x.Customer)
+                .WithMany(x=>x.Addresses)
                 .HasForeignKey(x => x.CustomerId)
                 .OnDelete(DeleteBehavior.Cascade);
         }

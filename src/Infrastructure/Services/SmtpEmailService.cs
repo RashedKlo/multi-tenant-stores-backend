@@ -1,9 +1,10 @@
-using System.Net;
-using System.Net.Mail;
 using Application.Common.Interfaces;
 using Infrastructure.Settings;
+using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MimeKit;
 
 namespace Infrastructure.Services;
 
@@ -39,26 +40,40 @@ public class SmtpEmailService(
         string body,
         CancellationToken cancellationToken)
     {
-        using var message = new MailMessage
-        {
-            From = new MailAddress(_settings.FromEmail, _settings.FromName),
-            Subject = subject,
-            Body = body,
-            IsBodyHtml = false
-        };
-        message.To.Add(toEmail);
+        var message = new MimeMessage();
+        message.From.Add(new MailboxAddress(_settings.FromName, _settings.FromEmail));
+        message.To.Add(MailboxAddress.Parse(toEmail));
+        message.Subject = subject;
+        message.Body = new TextPart("plain") { Text = body };
 
-        using var client = new SmtpClient(_settings.Host, _settings.Port)
-        {
-            Credentials = new NetworkCredential(_settings.Username, _settings.Password),
-            EnableSsl = _settings.UseSsl
-        };
+        using var client = new SmtpClient();
 
         try
         {
-            await client.SendMailAsync(message, cancellationToken);
+            // Automatically chooses the right secure option
+            var secureSocketOptions = _settings.UseSsl
+                ? SecureSocketOptions.StartTls
+                : SecureSocketOptions.None;
+
+            await client.ConnectAsync(
+                _settings.Host,
+                _settings.Port,
+                secureSocketOptions,
+                cancellationToken);
+
+            // Only authenticate if credentials are provided (MailHog doesn't need them)
+            if (!string.IsNullOrWhiteSpace(_settings.Username))
+            {
+                await client.AuthenticateAsync(
+                    _settings.Username,
+                    _settings.Password,
+                    cancellationToken);
+            }
+
+            await client.SendAsync(message, cancellationToken);
+            await client.DisconnectAsync(true, cancellationToken);
         }
-        catch (SmtpException ex)
+        catch (Exception ex)
         {
             logger.LogError(ex, "Failed to send email to {Email}", toEmail);
             throw new InvalidOperationException("Failed to send email.", ex);

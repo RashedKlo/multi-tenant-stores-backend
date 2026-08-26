@@ -17,8 +17,8 @@ namespace Infrastructure.Persistence.Configurations
 
             builder.HasIndex(x => x.OptionId).HasDatabaseName("idx_cart_item_options_option_id");
 
-            builder.HasOne(x => x.CartItem).WithMany().HasForeignKey(x => x.CartItemId).OnDelete(DeleteBehavior.Cascade);
-            builder.HasOne<ProductOption>().WithMany().HasForeignKey(x => x.OptionId).OnDelete(DeleteBehavior.Cascade);
+            builder.HasOne(x => x.CartItem).WithMany(x=>x.CartItemOptions).HasForeignKey(x => x.CartItemId).OnDelete(DeleteBehavior.Cascade);
+            builder.HasOne(x=>x.Option).WithMany(x=>x.CartItemOptions).HasForeignKey(x => x.OptionId).OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

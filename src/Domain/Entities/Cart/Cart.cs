@@ -15,8 +15,8 @@ namespace Domain.Entities
         public GuestSession? GuestSession { get; private set; }
         public Store? Store { get; private set; }
 
-        private readonly List<CartItem> _cartItems = new();
-        public IReadOnlyCollection<CartItem> CartItems => _cartItems.AsReadOnly();
+       public ICollection<CartItem> CartItems=>new List<CartItem>();
+
 
         private Cart() { }
 
@@ -69,7 +69,7 @@ namespace Domain.Entities
             if (errors.Count > 0)
                 return Result.Failure(errors);
 
-            var existing = _cartItems.FirstOrDefault(i =>
+            var existing = CartItems.FirstOrDefault(i =>
                 i.ProductId == productId &&
                 OptionsMatch(i, optionIds));
 
@@ -77,7 +77,6 @@ namespace Domain.Entities
             {
                 var result = existing.IncreaseQuantity(quantity);
                 if (result.IsFailure) return result;
-                Touch();
                 return Result.Success();
             }
 
@@ -99,38 +98,36 @@ namespace Domain.Entities
                 }
             }
 
-            _cartItems.Add(item);
-            Touch();
+            CartItems.Add(item);
             return Result.Success();
         }
 
         public Result UpdateItemQuantity(Guid cartItemId, int quantity)
         {
-            var item = _cartItems.FirstOrDefault(i => i.Id == cartItemId);
+            var item = CartItems.FirstOrDefault(i => i.Id == cartItemId);
             if (item is null)
                 return Result.Failure(new Error("CartItem.NotFound", "Cart item not found."));
 
             var result = item.Update(quantity);
             if (result.IsFailure) return result;
 
-            Touch();
             return Result.Success();
         }
 
         public Result RemoveItem(Guid cartItemId)
         {
-            var item = _cartItems.FirstOrDefault(i => i.Id == cartItemId);
+            var item = CartItems.FirstOrDefault(i => i.Id == cartItemId);
             if (item is null)
                 return Result.Failure(new Error("CartItem.NotFound", "Cart item not found."));
 
-            _cartItems.Remove(item);
+            CartItems.Remove(item);
             Touch();
             return Result.Success();
         }
 
         public Result ClearItems()
         {
-            _cartItems.Clear();
+            CartItems.Clear();
             Touch();
             return Result.Success();
         }

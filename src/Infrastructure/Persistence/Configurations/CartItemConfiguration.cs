@@ -29,15 +29,10 @@ namespace Infrastructure.Persistence.Configurations
             builder.HasIndex(x => x.CartId).HasDatabaseName("idx_cart_items_cart_id");
             builder.HasIndex(x => x.ProductId).HasDatabaseName("idx_cart_items_product_id");
 
-            builder.HasOne(x => x.Cart).WithMany().HasForeignKey(x => x.CartId).OnDelete(DeleteBehavior.Cascade);
-            builder.HasOne<Product>().WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Cascade);
+            builder.HasOne(x => x.Cart).WithMany(x=>x.CartItems).HasForeignKey(x => x.CartId).OnDelete(DeleteBehavior.Cascade);
+            builder.HasOne(x=>x.Product).WithMany(x=>x.CartItems).HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Cascade);
 
-            builder.HasMany<CartItemOption>("_cartItemOptions")
-                   .WithOne(o => o.CartItem)
-                   .HasForeignKey(o => o.CartItemId)
-                   .OnDelete(DeleteBehavior.Cascade);
 
-            builder.Navigation("_cartItemOptions").UsePropertyAccessMode(PropertyAccessMode.Field);
         }
     }
 }

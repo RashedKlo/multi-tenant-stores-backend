@@ -20,6 +20,7 @@ namespace Domain.Entities
         public Store Store { get; private set; } = null!;
         public ICollection<Product> Products { get; private set; } = new List<Product>();
         public ICollection<DiscountProduct> DiscountProducts { get; private set; } = new List<DiscountProduct>();
+        public ICollection<DiscountSection> DiscountSections { get; private set; } = new List<DiscountSection>();
 
         private StoreSection()
         {

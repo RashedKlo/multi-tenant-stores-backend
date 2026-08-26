@@ -113,6 +113,13 @@ namespace Domain.Entities
             IsEmailVerified = true;
             UpdatedAt = DateTime.UtcNow;
         }
+// Domain/Entities/Customer.cs
+public void SetPassword(string passwordHash)
+{
+    
+    PasswordHash = passwordHash;
+    UpdatedAt = DateTime.UtcNow; // if you track it
+}
 
         public void Activate()
         {
@@ -137,5 +144,14 @@ namespace Domain.Entities
             DeletedAt = null;
             UpdatedAt = DateTime.UtcNow;
         }
+        // Customer.cs
+public void LinkGoogleAccount(string googleId)
+{
+ 
+    GoogleId = googleId;
+            UpdatedAt = DateTime.UtcNow;
+
+}
+
     }
 }

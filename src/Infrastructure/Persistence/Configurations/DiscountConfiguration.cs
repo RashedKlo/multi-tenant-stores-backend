@@ -87,8 +87,8 @@ namespace Infrastructure.Persistence.Configurations
             builder.HasIndex(x => x.StoreId)
                 .HasDatabaseName("idx_discounts_store_id");
 
-            builder.HasOne<Store>()
-                .WithMany()
+            builder.HasOne(x=>x.Store)
+                .WithMany(x=>x.Discounts)
                 .HasForeignKey(x => x.StoreId)
                 .OnDelete(DeleteBehavior.Cascade);
         }

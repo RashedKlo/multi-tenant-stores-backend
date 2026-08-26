@@ -31,13 +31,13 @@ namespace Infrastructure.Persistence.Configurations
             builder.HasIndex(x => x.StoreId)
                 .HasDatabaseName("idx_favorite_stores_store_id");
 
-            builder.HasOne<Customer>()
-                .WithMany()
+                   builder.HasOne(x=>x.Customer)
+                .WithMany(x=>x.FavoriteStores)
                 .HasForeignKey(x => x.CustomerId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            builder.HasOne<Store>()
-                .WithMany()
+            builder.HasOne(x=>x.Store)
+                .WithMany(x=>x.FavoriteStores)
                 .HasForeignKey(x => x.StoreId)
                 .OnDelete(DeleteBehavior.Cascade);
         }

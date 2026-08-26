@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Application.Auth.DTOs;
 using Application.Common.Interfaces;
 using Domain.Common;
@@ -19,27 +20,42 @@ public class RegisterHandler(
     public async Task<Result<RegisterResultDto>> Handle(
         RegisterCommand request, CancellationToken cancellationToken)
     {
-        if (await customerRepository.EmailExistsAsync(request.Email, cancellationToken))
-            return Result<RegisterResultDto>.Failure(
-                Error.Conflict("Email", $"An account with email '{request.Email}' already exists."));
+        var email = request.Email.Trim().ToLowerInvariant();
 
-        var passwordHash = passwordHasher.Hash(request.Password);
-        var customer = Customer.Create(
-            request.FirstName, request.LastName, request.Email, passwordHash);
-if(customer is null)
-            return Result<RegisterResultDto>.Failure(
-                Error.Validation("Customer.Invalid", "Failed to create customer."));
-        customerRepository.Add(customer.Value!);
-        await customerRepository.SaveChangesAsync(cancellationToken);
+        // Fast-path check for a friendly error; the DB unique index is the real guarantee.
+        if (await customerRepository.EmailExistsAsync(email, cancellationToken))
+            return EmailConflict();
 
-        var code = GenerateCode();
-        await codeStore.StoreCodeAsync(customer.Value!.Email, code, CodeTtl, cancellationToken);
-        await emailService.SendVerificationCodeAsync(customer.Value!.Email, code, cancellationToken);
+        var createResult = Customer.Create(
+            request.FirstName.Trim(),
+            request.LastName.Trim(),
+            email,
+            passwordHasher.Hash(request.Password));
+
+        if (createResult.IsFailure)
+            return Result<RegisterResultDto>.Failure(createResult.Errors);
+
+        var customer = createResult.Value!;
+        customerRepository.Add(customer);
+
+        try
+        {
+            await customerRepository.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception )   // adjust to your actual exception type / catch DbUpdateException and inspect
+        {
+            return EmailConflict();                  // concurrent registration lost the race
+        }
+  var code = RandomNumberGenerator.GetInt32(100_000, 1_000_000).ToString();
+
+        await codeStore.StoreCodeAsync(email, code, CodeTtl, cancellationToken);
+        await emailService.SendVerificationCodeAsync(email, code, cancellationToken);
 
         return Result<RegisterResultDto>.Success(
-            new RegisterResultDto(customer.Value!.Id, customer.Value!.Email));
+            new RegisterResultDto(customer.Id, customer.Email));
     }
 
-    private static string GenerateCode() =>
-        Random.Shared.Next(100_000, 999_999).ToString();
+    private static Result<RegisterResultDto> EmailConflict() =>
+        Result<RegisterResultDto>.Failure(
+            Error.Conflict("Email.Exists", "An account with this email already exists."));
 }

@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Application.Common.Interfaces;
 using Domain.Common;
 using Domain.Interfaces;
@@ -16,19 +17,21 @@ public class ForgotPasswordHandler(
     public async Task<Result> Handle(
         ForgotPasswordCommand request, CancellationToken cancellationToken)
     {
-        var customer = await customerRepository.GetByEmailAsync(request.Email, cancellationToken);
+        var email = request.Email.Trim().ToLowerInvariant();
 
-        // Silent no-op if email doesn't exist — never confirm which emails have accounts.
-        if (customer is null)
-            return Result.Failure(Error.NotFound("Customer.NotFound", "Customer not found"));
+        var customer = await customerRepository.GetByEmailAsync(email, cancellationToken);
 
-        // Google-only account has no password to reset — silent no-op too.
-        if (customer.PasswordHash is null)
-            return Result.Failure(Error.Validation("Customer.Invalid", "This account has no password to reset."));
+        // Silent success for BOTH cases — never reveal:
+        //   1. whether the email has an account,
+        //   2. whether it's a Google-only account without a local password.
+        // An attacker probing emails gets an identical response either way.
+        if (customer is null || customer.PasswordHash is null)
+            return Result.Success();
 
-        var code = Random.Shared.Next(100_000, 999_999).ToString();
-        await codeStore.StoreCodeAsync(customer.Email, code, CodeTtl, cancellationToken);
-        await emailService.SendPasswordResetCodeAsync(customer.Email, code, cancellationToken);
+        var code = RandomNumberGenerator.GetInt32(100_000, 1_000_000).ToString();
+
+        await codeStore.StoreCodeAsync( email, code, CodeTtl, cancellationToken);
+        await emailService.SendPasswordResetCodeAsync(email, code, cancellationToken);
 
         return Result.Success();
     }

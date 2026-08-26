@@ -56,8 +56,8 @@ namespace Infrastructure.Persistence.Configurations
                 .IsUnique()
                 .HasDatabaseName("uq_refresh_tokens_token_hash");
 
-            builder.HasOne<Customer>()
-                .WithMany()
+            builder.HasOne(x=>x.Customer)
+                .WithMany(x=>x.RefreshTokens)
                 .HasForeignKey(x => x.CustomerId)
                 .OnDelete(DeleteBehavior.Cascade);
         }

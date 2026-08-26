@@ -12,16 +12,21 @@ public class CreateGuestSessionHandler(
     IJwtTokenService tokenService)
     : IRequestHandler<CreateGuestSessionCommand, Result<GuestSessionDto>>
 {
-    private static readonly DateTime Ttl = DateTime.UtcNow.AddDays(30);
+    private static readonly TimeSpan SessionLifetime = TimeSpan.FromDays(30);
 
     public async Task<Result<GuestSessionDto>> Handle(
         CreateGuestSessionCommand request, CancellationToken cancellationToken)
     {
-        // Raw token goes to the browser; only its hash is stored.
+        // Raw token goes to the browser exactly once; only its hash is persisted.
         var rawToken = tokenService.GenerateOpaqueToken();
-        var session = GuestSession.Create(tokenService.HashToken(rawToken), Ttl);
-          if(session is null)
-            return Result<GuestSessionDto>.Failure(Error.Validation("GuestSession.Invalid", "Failed to create guest session."));
+
+        var session = GuestSession.Create(
+            tokenService.HashToken(rawToken),
+            DateTime.UtcNow.Add(SessionLifetime)); // adjust if Create takes a TimeSpan
+
+        if (session.IsFailure)
+            return Result<GuestSessionDto>.Failure(session.Errors);
+
         repository.Add(session.Value!);
         await repository.SaveChangesAsync(cancellationToken);
 

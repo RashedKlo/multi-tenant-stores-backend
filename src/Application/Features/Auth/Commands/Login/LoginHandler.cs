@@ -14,45 +14,52 @@ public class LoginHandler(
     IJwtTokenService tokenService)
     : IRequestHandler<LoginCommand, Result<AuthTokensDto>>
 {
-    private static readonly DateTime RefreshTokenTtl = DateTime.UtcNow.AddDays(30);
+    private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(30);
 
     public async Task<Result<AuthTokensDto>> Handle(
         LoginCommand request, CancellationToken cancellationToken)
     {
-        var customer = await customerRepository.GetByEmailAsync(request.Email, cancellationToken);
+        var email = request.Email.Trim().ToLowerInvariant();
 
-        // Same generic message whether the email doesn't exist or the
-        // password is wrong — don't let this endpoint confirm which emails
-        // have accounts.
-        if (customer is null || customer.PasswordHash is null
-            || !passwordHasher.Verify(request.Password, customer.PasswordHash))
+        var customer = await customerRepository.GetByEmailAsync(email, cancellationToken);
+
+        var validCredentials =
+            customer is not null
+            && customer.PasswordHash is not null
+            && passwordHasher.Verify(request.Password, customer.PasswordHash);
+
+        if (!validCredentials)
         {
+
             return Result<AuthTokensDto>.Failure(
-                Error.Conflict("Credentials", "Invalid email or password."));
+                Error.Unauthorized("Credentials", "Invalid email or password."));
         }
 
-        if (!customer.IsEmailVerified)
-        {
+        if (!customer!.IsEmailVerified)
             return Result<AuthTokensDto>.Failure(
-                Error.Conflict("Email", "Please verify your email before logging in."));
-        }
+                Error.Forbidden("Email.NotVerified", "Please verify your email before logging in."));
 
-        if (!customer.IsActive || customer.IsDeleted)
-        {
+        if (!customer.IsActive || customer.IsDeleted) // adjust if these props differ
             return Result<AuthTokensDto>.Failure(
-                Error.Conflict("Account", "This account is inactive."));
-        }
+                Error.Forbidden("Account.Inactive", "This account is inactive."));
 
         var pair = tokenService.GenerateTokenPair(customer.Id, customer.Email);
-        var refreshTokenHash = tokenService.HashToken(pair.RefreshToken);
-       var refreshToken = Domain.Entities.RefreshToken.Create(customer.Id, refreshTokenHash, RefreshTokenTtl);
-       if (refreshToken.IsFailure)
-        {
+
+        var refreshToken = Domain.Entities.RefreshToken.Create(
+            customer.Id,
+            tokenService.HashToken(pair.RefreshToken),
+            DateTime.UtcNow.Add(RefreshTokenLifetime));
+
+        if (refreshToken.IsFailure)
             return Result<AuthTokensDto>.Failure(refreshToken.Errors);
-        }
+
         refreshTokenRepository.Add(refreshToken.Value!);
         await refreshTokenRepository.SaveChangesAsync(cancellationToken);
- 
+
+        // TODO: guest→auth cart handoff when GuestSessionToken is provided:
+        //   resolve guest session by hash → move/merge its cart items into the
+        //   customer's active cart → revoke the guest session. Single transaction.
+
         return Result<AuthTokensDto>.Success(
             new AuthTokensDto(pair.AccessToken, pair.RefreshToken, pair.AccessTokenExpiresAt));
     }

@@ -10,26 +10,18 @@ namespace Application.Discovery.Queries.GetModuleDetail;
 /// while the underlying tables stay small and rarely written.
 /// </summary>
 public class GetModuleDetailHandler(
-    IModuleRepository moduleRepository,
-    IModuleBannerRepository bannerRepository,
-    ICategoryRepository categoryRepository)
+    IModuleRepository moduleRepository)
     : IRequestHandler<GetModuleDetailQuery, Result<ModuleDetailDto>>
 {
-    public async Task<Result<ModuleDetailDto>>   Handle(
-        GetModuleDetailQuery request, CancellationToken cancellationToken)
-    {
-        var module = await moduleRepository.GetByIdAsync(request.ModuleId, cancellationToken);
+public async Task<Result<ModuleDetailDto>> Handle(GetModuleDetailQuery request, CancellationToken ct)
+{
+    var module = await moduleRepository.GetReadByIdWithDetailsAsync(request.ModuleId, ct);
 
-         if (module is null)
-            return Result<ModuleDetailDto>.Failure(
-                Error.NotFound("Module.NotFound", $"Module with id '{request.ModuleId}' was not found."));
+    if (module is null)
+        return Result<ModuleDetailDto>.Failure(
+            Error.NotFound("Module.NotFound", $"Module with id '{request.ModuleId}' was not found."));
 
-
-        // Independent reads — run concurrently.
-        var bannersTask = bannerRepository.GetByModuleIdAsync(request.ModuleId, cancellationToken);
-        var categoriesTask = categoryRepository.GetByModuleIdAsync(request.ModuleId, cancellationToken);
-        await Task.WhenAll(bannersTask, categoriesTask);
-
-        return Result<ModuleDetailDto>.Success(ModuleDetailDto.FromEntity(module));
-    }
+    return Result<ModuleDetailDto>.Success(
+        ModuleDetailDto.FromEntity(module, module.ModuleBanners.ToList(), module.Categories.ToList()));
+}
 }

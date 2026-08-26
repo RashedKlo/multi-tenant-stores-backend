@@ -14,34 +14,40 @@ public class VerifyEmailHandler(
     IJwtTokenService tokenService)
     : IRequestHandler<VerifyEmailCommand, Result<AuthTokensDto>>
 {
-    private static readonly DateTime RefreshTokenTtl = DateTime.UtcNow.AddDays(30);
+    private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(30);
 
     public async Task<Result<AuthTokensDto>> Handle(
         VerifyEmailCommand request, CancellationToken cancellationToken)
     {
-        if (!await codeStore.ValidateAndConsumeAsync(request.Email, request.Code, cancellationToken))
-            return Result<AuthTokensDto>.Failure(
-                Error.Conflict("Code", "Invalid or expired verification code."));
+        var email = request.Email.Trim().ToLowerInvariant();
 
-        var customer = await customerRepository.GetByEmailAsync(request.Email, cancellationToken);
-          if (customer is null)
-          return Result<AuthTokensDto>.Failure(
-                Error.NotFound("Customer.NotFound", "Customer not found."));
+        var customer = await customerRepository.GetByEmailAsync(email, cancellationToken);
+
+        // Single generic failure for "no account" or "wrong code" — no enumeration.
+        if (customer is null || !await codeStore.ValidateAndConsumeAsync(email, request.Code, cancellationToken))
+            return Result<AuthTokensDto>.Failure(
+                Error.Validation("Verification.Failed", "Invalid or expired verification code."));
+
+        if (customer.IsEmailVerified)
+            return Result<AuthTokensDto>.Failure(
+                Error.Conflict("Email.AlreadyVerified", "This email is already verified."));
 
         customer.VerifyEmail();
-        customerRepository.Update(customer);
-        await customerRepository.SaveChangesAsync(cancellationToken);
 
         var pair = tokenService.GenerateTokenPair(customer.Id, customer.Email);
-        var refreshTokenHash = tokenService.HashToken(pair.RefreshToken);
-        var refreshToken = Domain.Entities.RefreshToken.Create(customer.Id, refreshTokenHash, RefreshTokenTtl);
-       if (refreshToken.IsFailure)
-        {
+
+        var refreshToken = Domain.Entities.RefreshToken.Create(
+            customer.Id,
+            tokenService.HashToken(pair.RefreshToken),
+            DateTime.UtcNow.Add(RefreshTokenLifetime));
+
+        if (refreshToken.IsFailure)
             return Result<AuthTokensDto>.Failure(refreshToken.Errors);
-        }
-        refreshTokenRepository.Add(refreshToken.Value!);
-        await refreshTokenRepository.SaveChangesAsync(cancellationToken);
-        await refreshTokenRepository.SaveChangesAsync(cancellationToken);
+
+         refreshTokenRepository.Add(refreshToken.Value!);
+
+        // One unit of work: verification + token persisted together.
+        await customerRepository.SaveChangesAsync(cancellationToken);
 
         return Result<AuthTokensDto>.Success(
             new AuthTokensDto(pair.AccessToken, pair.RefreshToken, pair.AccessTokenExpiresAt));

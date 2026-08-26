@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Application.Common.Interfaces;
 using Microsoft.AspNetCore.Http;
@@ -6,7 +7,7 @@ namespace Infrastructure.Services;
 
 /// <summary>
 /// Reads the current customer from the HTTP context claims.
-/// Expects a claim named "sub" or ClaimTypes.NameIdentifier holding a Guid.
+/// Expects a claim named "sub" (JWT standard) or ClaimTypes.NameIdentifier holding a Guid.
 /// </summary>
 public class CurrentUserService(IHttpContextAccessor httpContextAccessor) : ICurrentUserService
 {
@@ -20,11 +21,10 @@ public class CurrentUserService(IHttpContextAccessor httpContextAccessor) : ICur
             if (user?.Identity?.IsAuthenticated != true)
                 return null;
 
-            // Prefer "sub" (JWT standard), fall back to NameIdentifier
+            
             var value =
-                user.FindFirst("sub")
+                user.FindFirst(JwtRegisteredClaimNames.Sub)
                 ?? user.FindFirst(ClaimTypes.NameIdentifier);
-
             return Guid.TryParse(value?.Value, out var id) ? id : null;
         }
     }

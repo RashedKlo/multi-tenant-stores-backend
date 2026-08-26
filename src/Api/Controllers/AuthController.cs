@@ -1,86 +1,90 @@
-// ============================================================
-// 1. AuthController
-// ============================================================
-using MediatR;
-using Microsoft.AspNetCore.Mvc;
-using Application.Common.Models;
-using Application.Auth.DTOs;
 using Application.Auth.Commands.CreateGuestSession;
 using Application.Auth.Commands.ForgotPassword;
 using Application.Auth.Commands.GoogleLogin;
 using Application.Auth.Commands.Login;
 using Application.Auth.Commands.Logout;
+using Application.Auth.Commands.RefreshToken;
+using Application.Auth.Commands.Register;
 using Application.Auth.Commands.ResendVerification;
 using Application.Auth.Commands.ResetPassword;
 using Application.Auth.Commands.VerifyEmail;
-using Application.Auth.Commands.RefreshToken;
-using Application.Auth.Commands.Register;
+using Application.Auth.DTOs;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
-// adjust namespaces to match your project
+namespace Api.Controllers;
 
 [ApiController]
-[Route("api")]
-public class AuthController(IMediator mediator) : ControllerBase
+[Route("api/auth")]
+public class AuthController(IMediator mediator) : ApiControllerBase
 {
-    [HttpPost("auth/guest-session")]
-    public async Task<ActionResult<GuestSessionDto>> CreateGuestSession(
-        CancellationToken ct) =>
-        Ok(await mediator.Send(new CreateGuestSessionCommand(), ct));
+    // ---------- Sessions ----------
 
-    [HttpPost("auth/register")]
+    [HttpPost("guest-session")]
+    // [EnableRateLimiting("auth-general")]
+    public async Task<ActionResult<GuestSessionDto>> CreateGuestSession(CancellationToken ct) =>
+        HandleResult(await mediator.Send(new CreateGuestSessionCommand(), ct));
+
+    // ---------- Registration & verification ----------
+
+    [HttpPost("register")]
+    // [EnableRateLimiting("auth-email")]
     public async Task<ActionResult<RegisterResultDto>> Register(
         [FromBody] RegisterCommand command, CancellationToken ct) =>
-        Ok(await mediator.Send(command, ct));
+        HandleResult(await mediator.Send(command, ct));
 
-    [HttpPost("auth/verify-email")]
+    [HttpPost("verify-email")]
+    // [EnableRateLimiting("auth-code")]
     public async Task<ActionResult<AuthTokensDto>> VerifyEmail(
         [FromBody] VerifyEmailCommand command, CancellationToken ct) =>
-        Ok(await mediator.Send(command, ct));
+        HandleResult(await mediator.Send(command, ct));
 
-    [HttpPost("auth/resend-verification")]
-    public async Task<ActionResult> ResendVerification(
-        [FromBody] ResendVerificationCommand command, CancellationToken ct)
-    {
-        await mediator.Send(command, ct);
-        return NoContent();
-    }
+    [HttpPost("resend-verification")]
+    // [EnableRateLimiting("auth-email")]
+    public async Task<IActionResult> ResendVerification(
+        [FromBody] ResendVerificationCommand command, CancellationToken ct) =>
+        HandleResult(await mediator.Send(command, ct));
 
-    [HttpPost("auth/login")]
+    // ---------- Login ----------
+
+    [HttpPost("login")]
+    // [EnableRateLimiting("auth-login")]
     public async Task<ActionResult<AuthTokensDto>> Login(
         [FromBody] LoginCommand command, CancellationToken ct) =>
-        Ok(await mediator.Send(command, ct));
+        HandleResult(await mediator.Send(command, ct));
 
-    [HttpPost("auth/google")]
+    [HttpPost("google")]
+    // [EnableRateLimiting("auth-login")]
     public async Task<ActionResult<AuthTokensDto>> GoogleLogin(
         [FromBody] GoogleLoginCommand command, CancellationToken ct) =>
-        Ok(await mediator.Send(command, ct));
+        HandleResult(await mediator.Send(command, ct));
 
-    [HttpPost("auth/refresh")]
+    // ---------- Tokens ----------
+
+    [HttpPost("refresh")]
+    // [EnableRateLimiting("auth-general")]
     public async Task<ActionResult<AuthTokensDto>> Refresh(
         [FromBody] RefreshTokenCommand command, CancellationToken ct) =>
-        Ok(await mediator.Send(command, ct));
+        HandleResult(await mediator.Send(command, ct));
 
-    [HttpPost("auth/logout")]
-    public async Task<ActionResult> Logout(
-        [FromBody] LogoutCommand command, CancellationToken ct)
-    {
-        await mediator.Send(command, ct);
-        return NoContent();
-    }
+    [HttpPost("logout")]
+    [Authorize] // requires a valid access token — logout must know who is logging out
+    public async Task<IActionResult> Logout(
+        [FromBody] LogoutCommand command, CancellationToken ct) =>
+        HandleResult(await mediator.Send(command, ct));
 
-    [HttpPost("auth/forgot-password")]
-    public async Task<ActionResult> ForgotPassword(
-        [FromBody] ForgotPasswordCommand command, CancellationToken ct)
-    {
-        await mediator.Send(command, ct);
-        return NoContent();
-    }
+    // ---------- Password reset ----------
 
-    [HttpPost("auth/reset-password")]
-    public async Task<ActionResult> ResetPassword(
-        [FromBody] ResetPasswordCommand command, CancellationToken ct)
-    {
-        await mediator.Send(command, ct);
-        return NoContent();
-    }
+    [HttpPost("forgot-password")]
+    // [EnableRateLimiting("auth-email")]
+    public async Task<IActionResult> ForgotPassword(
+        [FromBody] ForgotPasswordCommand command, CancellationToken ct) =>
+        HandleResult(await mediator.Send(command, ct));
+
+    [HttpPost("reset-password")]
+    // [EnableRateLimiting("auth-code")]
+    public async Task<IActionResult> ResetPassword(
+        [FromBody] ResetPasswordCommand command, CancellationToken ct) =>
+        HandleResult(await mediator.Send(command, ct));
 }

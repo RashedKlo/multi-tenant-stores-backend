@@ -36,17 +36,11 @@ namespace Infrastructure.Persistence.Configurations
                 .IsUnique().HasFilter("guest_session_id IS NOT NULL")
                 .HasDatabaseName("uq_carts_guest_store");
 
-            builder.HasOne<Customer>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Cascade);
-            builder.HasOne<GuestSession>().WithMany().HasForeignKey(x => x.GuestSessionId).OnDelete(DeleteBehavior.Cascade);
-            builder.HasOne<Store>().WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
+            builder.HasOne(x=>x.Customer).WithMany(x=>x.Carts).HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Cascade);
+            builder.HasOne(x=>x.GuestSession).WithMany(x=>x.Carts).HasForeignKey(x => x.GuestSessionId).OnDelete(DeleteBehavior.Cascade);
+            builder.HasOne(x=>x.Store).WithMany(x=>x.Carts).HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
 
-            // Private collection mapping
-            builder.HasMany<CartItem>("_cartItems")
-                   .WithOne(i => i.Cart)
-                   .HasForeignKey(i => i.CartId)
-                   .OnDelete(DeleteBehavior.Cascade);
 
-            builder.Navigation("_cartItems").UsePropertyAccessMode(PropertyAccessMode.Field);
         }
     }
 }

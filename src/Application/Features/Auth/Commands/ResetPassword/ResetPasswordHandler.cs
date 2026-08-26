@@ -1,6 +1,5 @@
 using Application.Common.Interfaces;
 using Domain.Common;
-using Domain.Entities;
 using Domain.Interfaces;
 using MediatR;
 
@@ -16,34 +15,26 @@ public class ResetPasswordHandler(
     public async Task<Result> Handle(
         ResetPasswordCommand request, CancellationToken cancellationToken)
     {
-        if (!await codeStore.ValidateAndConsumeAsync(request.Email, request.Code, cancellationToken))
-            return Result.Failure(Error.Conflict("Code", "Invalid or expired code."));
+        var email = request.Email.Trim().ToLowerInvariant();
 
-        var customer = await customerRepository.GetByEmailAsync(request.Email, cancellationToken);
-        if (customer is null)
-            return Result.Failure(Error.NotFound("Customer.NotFound", "Customer not found."));
+        var customer = await customerRepository.GetByEmailAsync(email, cancellationToken);
 
-        customer.Update(firstName: customer.FirstName,
-         lastName: customer.LastName,
-          email: customer.Email, 
-          passwordHash: passwordHasher.Hash(request.NewPassword), 
-          googleId: customer.GoogleId);
-        customerRepository.Update(customer);
-        await customerRepository.SaveChangesAsync(cancellationToken);
+        // Generic failure covers both "no such account" and "bad code" — no enumeration,
+        // and the code isn't burned for nonexistent emails.
+        if (customer is null || !await codeStore.ValidateAndConsumeAsync(email, request.Code, cancellationToken))
+            return Result.Failure(
+                Error.Validation("PasswordReset.Failed", "Invalid or expired reset code."));
 
-        // Password reset logs out every existing session — if the account
-        // was compromised, leaving old refresh tokens alive defeats the point.
+        // Explicit domain operation instead of round-tripping every field through Update().
+        customer.SetPassword(passwordHasher.Hash(request.NewPassword));
+
+        // Password reset kills every live session — atomic with the save below.
         var activeTokens = await refreshTokenRepository.GetActiveByCustomerIdAsync(
             customer.Id, cancellationToken);
 
         foreach (var token in activeTokens)
-        {
             token.Revoke();
-            refreshTokenRepository.Update(token);
-        }
-
-        if (activeTokens.Count > 0)
-            await refreshTokenRepository.SaveChangesAsync(cancellationToken);
+        await customerRepository.SaveChangesAsync(cancellationToken);
 
         return Result.Success();
     }
