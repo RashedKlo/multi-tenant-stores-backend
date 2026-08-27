@@ -2,6 +2,7 @@ using System.Threading.RateLimiting;
 using Application;
 using Application.Common.Behaviors;
 using Infrastructure;
+using Infrastructure.Middleware;
 using MediatR;
 using Microsoft.AspNetCore.RateLimiting;
 using Scalar.AspNetCore;
@@ -77,8 +78,6 @@ builder.Services.AddRateLimiter(options =>
 static string PartitionKey(HttpContext ctx) =>
     ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
-// Global validation behavior using MediatR pipeline
-builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
 var app = builder.Build();
 app.UseMiniProfiler();
@@ -95,6 +94,7 @@ app.UseRateLimiter();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<GuestSessionMiddleware>();
 app.MapControllers();
 
 

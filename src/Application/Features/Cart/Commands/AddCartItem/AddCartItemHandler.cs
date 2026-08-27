@@ -33,7 +33,7 @@ public class AddCartItemHandler : IRequestHandler<AddCartItemCommand, Result>
 
     private async Task<Result<Cart>> GetOrCreateCartAsync(Guid storeId, CancellationToken ct)
     {
-        
+       
         if (_user.CustomerId is Guid customerId)
         {
             var existing = await _repo.GetForUpdateByCustomerAndStoreAsync(customerId, storeId, ct);
@@ -50,6 +50,7 @@ public class AddCartItemHandler : IRequestHandler<AddCartItemCommand, Result>
 
        else if (_user.GuestSessionId is Guid guestSessionId)
         {
+
             var existing = await _repo.GetForUpdateByGuestSessionAndStoreAsync(guestSessionId, storeId, ct);
             if (existing is not null)
                 return Result<Cart>.Success(existing);

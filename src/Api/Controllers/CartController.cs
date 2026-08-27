@@ -16,9 +16,8 @@ public class CartController(IMediator mediator) : ApiControllerBase
     /// Always returns a CartDto (empty cart if none exists yet) — this query never fails.
     /// </summary>
     [HttpGet("cart")]
-    public async Task<ActionResult<CartDto>> GetCart(
-        [FromQuery] Guid storeId, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetCartItemsQuery(storeId), ct));
+public async Task<ActionResult<IReadOnlyList<CartItemDto>>> GetCart(CancellationToken ct) =>
+    Ok(await mediator.Send(new GetCartItemsQuery(), ct));
 
     [HttpPost("cart/items")]
     public async Task<ActionResult> AddItem(

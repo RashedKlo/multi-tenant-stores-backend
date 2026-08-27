@@ -14,12 +14,13 @@ public class CartQueries : ICartQueries
     public CartQueries(IDbConnectionFactory connectionFactory)
         => _connectionFactory = connectionFactory;
 
-    public async Task<IReadOnlyList<CartItemDto>> GetCartItemsAsync(Guid cartId)
+    public async Task<IReadOnlyList<CartItemDto>> GetCartItemsAsync(Guid? customerId, Guid? guestSessionId)
     {
         const string sql = """
             SELECT
                 ci.id                                             AS CartItemId,
                 ci.cart_id                                         AS CartId,
+                c.store_id                                         AS StoreId,
                 ci.product_id                                      AS ProductId,
                 p.name_en                                          AS ProductNameEn,
                 p.name_ar                                          AS ProductNameAr,
@@ -28,7 +29,8 @@ public class CartQueries : ICartQueries
                 ci.notes                                           AS Notes,
                 COALESCE(opts.selected_options, '[]')              AS SelectedOptionsJson,
                 (p.price + COALESCE(opts.options_total, 0)) * ci.quantity AS ItemTotalPrice
-            FROM cart_items ci
+            FROM carts c
+            JOIN cart_items ci ON ci.cart_id = c.id
             JOIN products p ON p.id = ci.product_id
             LEFT JOIN LATERAL (
                 SELECT
@@ -46,12 +48,14 @@ public class CartQueries : ICartQueries
                 JOIN product_option_groups pog ON pog.id = po.option_group_id
                 WHERE cio.cart_item_id = ci.id
             ) opts ON true
-            WHERE ci.cart_id = @CartId
+            WHERE (@CustomerId::uuid IS NOT NULL AND c.customer_id = @CustomerId)
+               OR (@GuestSessionId::uuid IS NOT NULL AND c.guest_session_id = @GuestSessionId)
             ORDER BY ci.created_at
             """;
 
         using var connection = _connectionFactory.CreateConnection();
-        var rows = await connection.QueryAsync<CartItemRow>(sql, new { CartId = cartId });
+        var rows = await connection.QueryAsync<CartItemRow>(
+            sql, new { CustomerId = customerId, GuestSessionId = guestSessionId });
 
         return rows.Select(MapToDto).ToList();
     }
@@ -64,6 +68,7 @@ public class CartQueries : ICartQueries
         return new CartItemDto(
             row.CartItemId,
             row.CartId,
+            row.StoreId,
             row.ProductId,
             row.ProductNameEn,
             row.ProductNameAr,
@@ -74,12 +79,11 @@ public class CartQueries : ICartQueries
             row.ItemTotalPrice);
     }
 
-    // Flat row shape Dapper maps directly from the query — SelectedOptions
-    // arrives as raw JSON text here and gets deserialized in MapToDto.
     private sealed class CartItemRow
     {
         public Guid CartItemId { get; init; }
         public Guid CartId { get; init; }
+        public Guid StoreId { get; init; }
         public Guid ProductId { get; init; }
         public string ProductNameEn { get; init; } = default!;
         public string ProductNameAr { get; init; } = default!;

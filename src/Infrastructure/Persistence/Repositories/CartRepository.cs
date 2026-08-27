@@ -22,10 +22,11 @@ public class CartRepository : ICartRepository
         System.Linq.Expressions.Expression<Func<Cart, bool>> predicate, CancellationToken ct)
     {
         return _context.Carts
-            .Include(c => c.CartItems)
-                .ThenInclude(ci => ci.CartItemOptions)   // was missing — AddItem's OptionsMatch needs this
-            .AsTracking()                              // avoids a cartesian-product join across two collections
-            .FirstOrDefaultAsync(predicate, ct);
+    .Include(c => c.CartItems)
+        .ThenInclude(ci => ci.CartItemOptions)
+    .AsSplitQuery()
+    .AsTracking()   // explicit; default is tracking, but make intent clear
+    .FirstOrDefaultAsync(predicate, ct);
     }
 
     public async Task AddAsync(Cart cart, CancellationToken ct = default)

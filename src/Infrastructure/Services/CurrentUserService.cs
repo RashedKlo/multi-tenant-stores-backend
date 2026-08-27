@@ -29,20 +29,15 @@ public class CurrentUserService(IHttpContextAccessor httpContextAccessor) : ICur
         }
     }
 
-    public Guid? GuestSessionId
+  public Guid? GuestSessionId
+{
+    get
     {
-        get
-        {
-            var user = httpContextAccessor.HttpContext?.User;
-            if (user is null)
-                return null;
-
-            var value =
-                user.FindFirst("guest_session_id")
-                ?? user.FindFirst("GuestSessionId")
-                ?? user.FindFirst("guest_session");
-
-            return Guid.TryParse(value?.Value, out var id) ? id : null;
-        }
+        var ctx = httpContextAccessor.HttpContext;
+        if (ctx?.Items.TryGetValue("GuestSessionId", out var value) == true
+            && value is Guid id)
+            return id;
+        return null;
     }
+}
 }
