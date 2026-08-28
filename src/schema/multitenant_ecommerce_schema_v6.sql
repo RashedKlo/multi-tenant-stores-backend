@@ -487,7 +487,7 @@ CREATE TABLE orders (
     id                     uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     customer_id            uuid NOT NULL REFERENCES customers(id) ON DELETE RESTRICT,
     store_id               uuid NOT NULL REFERENCES stores(id) ON DELETE RESTRICT,
-    address_id             uuid,
+    address_id             uuid NOT NULL REFERENCES customer_addresses(id) ON DELETE RESTRICT,
     delivery_name          varchar(200) NOT NULL,
     delivery_phone         varchar(30),
     delivery_address_text  text NOT NULL,
@@ -500,7 +500,6 @@ CREATE TABLE orders (
     created_at             timestamptz NOT NULL DEFAULT now(),
     updated_at             timestamptz NOT NULL DEFAULT now(),
     CHECK (total = subtotal - discount_total),
-    FOREIGN KEY (customer_id, address_id) REFERENCES customer_addresses(customer_id, id)
 );
 
 CREATE TRIGGER trg_orders_updated_at

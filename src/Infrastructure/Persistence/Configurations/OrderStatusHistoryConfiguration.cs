@@ -62,8 +62,8 @@ namespace Infrastructure.Persistence.Configurations
             builder.HasIndex(x => new { x.OrderId, x.ChangedAt })
                 .HasDatabaseName("idx_order_status_history_order_id");
 
-            builder.HasOne<Order>()
-                .WithMany()
+            builder.HasOne(x=>x.Order)
+                .WithMany(x=>x.OrderStatusHistories)
                 .HasForeignKey(x => x.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
         }

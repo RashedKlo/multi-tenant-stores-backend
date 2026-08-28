@@ -44,8 +44,8 @@ namespace Infrastructure.Persistence.Configurations
             builder.HasIndex(x => x.OrderItemId)
                 .HasDatabaseName("idx_order_item_options_order_item_id");
 
-            builder.HasOne<OrderItem>()
-                .WithMany()
+            builder.HasOne(x=>x.OrderItem)
+                .WithMany(x=>x.OrderItemOptions)
                 .HasForeignKey(x => x.OrderItemId)
                 .OnDelete(DeleteBehavior.Cascade);
         }

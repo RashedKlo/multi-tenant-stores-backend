@@ -130,21 +130,20 @@ namespace Infrastructure.Persistence.Configurations
             builder.HasIndex(x => x.Status)
                 .HasDatabaseName("idx_orders_status");
 
-            builder.HasOne<Customer>()
-                .WithMany()
+            builder.HasOne(x=>x.Customer)
+                .WithMany(x=>x.Orders)
                 .HasForeignKey(x => x.CustomerId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.HasOne<Store>()
-                .WithMany()
+            builder.HasOne(x=>x.Store)
+                .WithMany(x=>x.Orders)
                 .HasForeignKey(x => x.StoreId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // Composite FK (customer_id, address_id) → customer_addresses
-            builder.HasOne<CustomerAddress>()
-                .WithMany()
-                .HasForeignKey(x => new { x.CustomerId, x.AddressId })
-                .HasPrincipalKey(x => new { x.CustomerId, x.Id })
+            builder.HasOne(x=>x.CustomerAddress)
+                .WithMany(x=>x.Orders)
+                .HasForeignKey(x => x.AddressId)
                 .OnDelete(DeleteBehavior.NoAction)
                 .IsRequired(false);
         }

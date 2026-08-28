@@ -75,7 +75,28 @@ namespace Domain.Entities
 
             return Result<Payment>.Success(payment);
         }
+// Domain/Entities/Payment.cs — ADD
+public Result SetStripeReference(string sessionOrIntentId, string? paymentIntentId = null)
+{
+    var errors = new List<Error>();
+    sessionOrIntentId = DomainValidation.NormalizeRequiredString(
+        sessionOrIntentId, errors, "Stripe reference");
 
+    if (errors.Count > 0)
+        return Result.Failure(errors);
+
+    // Prefer real PaymentIntent when available; otherwise keep Session id
+    StripePaymentIntentId = string.IsNullOrWhiteSpace(paymentIntentId)
+        ? sessionOrIntentId
+        : paymentIntentId;
+
+    ProviderMetadata = string.IsNullOrWhiteSpace(paymentIntentId)
+        ? null
+        : $"{{\"session_id\":\"{sessionOrIntentId}\"}}";
+
+    UpdatedAt = DateTime.UtcNow;
+    return Result.Success();
+}
         public Result MarkSucceeded()
         {
             Status = PaymentStatus.Succeeded;

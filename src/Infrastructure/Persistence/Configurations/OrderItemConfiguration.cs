@@ -1,6 +1,7 @@
 using Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Org.BouncyCastle.Math.EC.Rfc7748;
 
 namespace Infrastructure.Persistence.Configurations
 {
@@ -74,13 +75,13 @@ namespace Infrastructure.Persistence.Configurations
             builder.HasIndex(x => x.ProductId)
                 .HasDatabaseName("idx_order_items_product_id");
 
-            builder.HasOne<Order>()
-                .WithMany()
+            builder.HasOne(x=>x.Order)
+                .WithMany(x=>x.OrderItems)
                 .HasForeignKey(x => x.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            builder.HasOne<Product>()
-                .WithMany()
+            builder.HasOne(x=>x.Product)
+                .WithMany(x=>x.OrderItems)
                 .HasForeignKey(x => x.ProductId)
                 .OnDelete(DeleteBehavior.SetNull);
         }

@@ -1,6 +1,7 @@
 using Domain.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Infrastructure.Repositories;
+using Stripe;
 namespace Infrastructure.Persistence;
 
 public static class RepositoryServiceCollectionExtensions
@@ -30,6 +31,11 @@ services.AddScoped<ICustomerAddressRepository, CustomerAddressRepository>();
 services.AddScoped<IGuestSessionRepository, GuestSessionRepository>();
 services.AddScoped<IFavoriteStoreRepository, FavoriteStoreRepository>();
 services.AddScoped<IFavoriteProductRepository, FavoriteProductRepository>();
+services.AddScoped<IOrderRepository,OrderRepository>();
+services.AddScoped<IOrderItemRepository,OrderItemRepository>();
+services.AddScoped<IOrderItemOptionRepository,OrderItemOptionRepository>();
+services.AddScoped<IOrderStatusHistoryRepository,OrderStatusHistoryRepository>();
+services.AddScoped<IPaymentRepository,PaymentRepository>();
         
 
         return services;
