@@ -9,7 +9,6 @@ public interface IPaymentRepository
 
     // Looked up by the Stripe webhook handler using the intent id from the event payload.
     Task<Payment?> GetByStripePaymentIntentIdAsync(string stripePaymentIntentId, CancellationToken cancellationToken = default);
-
     void Add(Payment payment);
     void Update(Payment payment);
 

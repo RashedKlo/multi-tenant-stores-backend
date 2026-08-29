@@ -32,7 +32,6 @@ namespace Infrastructure.Persistence.Configurations
             builder.Property(x => x.Status)
                 .HasColumnName("status")
                 .HasColumnType("order_status")
-                .HasConversion<string>()
                 .IsRequired();
 
             builder.Property(x => x.Note)

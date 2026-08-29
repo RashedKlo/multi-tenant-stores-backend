@@ -89,7 +89,6 @@ namespace Infrastructure.Persistence.Configurations
             builder.Property(x => x.Status)
                 .HasColumnName("status")
                 .HasColumnType("order_status")
-                .HasConversion<string>()
                 .HasDefaultValue(OrderStatus.Pending)
                 .IsRequired();
 

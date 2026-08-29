@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Domain.Interfaces;
 using Infrastructure.Services;
 using Infrastructure.Settings;
 using Microsoft.Extensions.Configuration;
@@ -32,6 +33,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICacheService, RedisCacheService>();
         services.AddScoped<IGoogleTokenVerifier, GoogleTokenVerifier>();
         services.AddScoped<IPaymentService,StripePaymentService>();
+        services.AddScoped<IStripeWebhookService,StripeWebhookService>();
 
         return services;
     }

@@ -28,6 +28,23 @@ public class CartRepository : ICartRepository
     .AsTracking()   // explicit; default is tracking, but make intent clear
     .FirstOrDefaultAsync(predicate, ct);
     }
+    public async Task ClearForCustomerStoreAsync(
+        Guid customerId,
+        Guid storeId,
+        CancellationToken ct = default)
+    {
+        var cart = await GetForUpdateByCustomerAndStoreAsync(customerId, storeId, ct);
+        if (cart is null)
+            return;
+
+        // Domain method — clears CartItems collection (options cascade with EF config)
+        cart.ClearItems();
+
+        // Optional: delete the cart row entirely instead of leaving an empty cart
+        // _context.Carts.Remove(cart);
+
+        await _context.SaveChangesAsync(ct);
+    }
 
     public async Task AddAsync(Cart cart, CancellationToken ct = default)
         => await _context.Carts.AddAsync(cart, ct);
