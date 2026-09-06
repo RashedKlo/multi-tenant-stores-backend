@@ -95,6 +95,7 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<GuestSessionMiddleware>();
+app.UseMiddleware<LanguageMiddleware>();
 app.MapControllers();
 
 
