@@ -45,7 +45,6 @@ namespace Infrastructure.Persistence.Configurations
             builder.Property(x => x.Status)
                 .HasColumnName("status")
                 .HasColumnType("payment_status")
-                .HasConversion<string>()
                 .HasDefaultValue(PaymentStatus.Pending)
                 .IsRequired();
 

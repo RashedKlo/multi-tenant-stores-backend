@@ -1,3 +1,4 @@
+// Infrastructure/Persistence/NpgsqlConnectionFactory.cs
 using System.Data;
 using Npgsql;
 
@@ -8,18 +9,19 @@ public interface IDbConnectionFactory
     IDbConnection CreateConnection();
 }
 
-public sealed class NpgsqlConnectionFactory : IDbConnectionFactory
+/// <summary>
+/// Uses a shared NpgsqlDataSource (enum mappings applied once at startup).
+/// </summary>
+public sealed class NpgsqlDataSourceConnectionFactory : IDbConnectionFactory
 {
-    private readonly string _connectionString;
+    private readonly NpgsqlDataSource _dataSource;
 
-    public NpgsqlConnectionFactory(string connectionString)
-    {
-        _connectionString = connectionString;
-    }
+    public NpgsqlDataSourceConnectionFactory(NpgsqlDataSource dataSource)
+        => _dataSource = dataSource;
 
     public IDbConnection CreateConnection()
     {
-        var connection = new NpgsqlConnection(_connectionString);
+        var connection = _dataSource.CreateConnection();
         connection.Open();
         return connection;
     }
