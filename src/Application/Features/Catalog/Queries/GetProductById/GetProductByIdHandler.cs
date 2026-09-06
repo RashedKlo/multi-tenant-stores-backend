@@ -8,7 +8,8 @@ namespace Application.Catalog.Queries.GetProductById;
 public class GetProductByIdHandler(
     IProductRepository productRepository,
     IFavoriteProductRepository favoriteProductRepository,
-    ICurrentUserService currentUser)
+    ICurrentUserService currentUser,
+    ICurrentLanguageProvider currentLanguageProvider)
     : IRequestHandler<GetProductByIdQuery, Result<ProductDetailDto>>
 {
     public async Task<Result<ProductDetailDto>> Handle(
@@ -24,7 +25,7 @@ public class GetProductByIdHandler(
             && await favoriteProductRepository.ExistsAsync(
                 currentUser.CustomerId!.Value, product.Id, cancellationToken);
 
-        var dto = ProductDetailDto.FromEntity(product, isFavorite);
+        var dto = ProductDetailDto.FromEntity(product, isFavorite,currentLanguageProvider.Language);
         return Result<ProductDetailDto>.Success(dto);
     }
 }

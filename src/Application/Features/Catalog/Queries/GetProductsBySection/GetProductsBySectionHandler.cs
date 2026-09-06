@@ -8,7 +8,8 @@ using MediatR;
 namespace Application.Catalog.Queries.GetProductsBySection;
 
 public class GetProductsBySectionHandler(
-    IProductRepository productRepository)
+    IProductRepository productRepository,
+    ICurrentLanguageProvider currentLanguageProvider)
     : IRequestHandler<GetProductsBySectionQuery, Result<PagedResult<ProductSummaryDto>>>
 {
     public async Task<Result<PagedResult<ProductSummaryDto>>> Handle(
@@ -23,7 +24,7 @@ public class GetProductsBySectionHandler(
             request.PageSize,
             cancellationToken);
         var dtos = products
-            .Select(p => ProductSummaryDto.FromEntity(p))
+            .Select(p => ProductSummaryDto.FromEntity(p, currentLanguageProvider.Language))
             .ToList();
 
         var result = PagedResult<ProductSummaryDto>.Create(

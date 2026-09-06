@@ -1,34 +1,38 @@
+using Application.Common.Extensions;
+using Application.Common.Interfaces;
+
 namespace Application.Discovery.DTOs;
 
 public record HomeBannerDto(
     Guid Id,
     string ImageUrl,
-    string? TitleEn,
-    string? TitleAr,
-    string? SubtitleEn,
-    string? SubtitleAr,
+    string? Title,
+    string? Subtitle,
     string? ActionUrl)
 {
-    public static HomeBannerDto FromEntity(Domain.Entities.HomeBanner b) => new(
-        b.Id, b.ImageUrl, b.TitleEn, b.TitleAr, b.SubtitleEn, b.SubtitleAr, b.ActionUrl);
+    public static HomeBannerDto FromEntity(Domain.Entities.HomeBanner b, Language lang) => new(
+        b.Id, b.ImageUrl,
+        lang.LocalizeNullable(b.TitleEn, b.TitleAr),
+        lang.LocalizeNullable(b.SubtitleEn, b.SubtitleAr),
+        b.ActionUrl);
 }
 
-public record ModuleDto(Guid Id, string NameEn, string NameAr, string? IconUrl)
+public record ModuleDto(Guid Id, string Name, string? IconUrl)
 {
-    public static ModuleDto FromEntity(Domain.Entities.Module m) =>
-        new(m.Id, m.NameEn, m.NameAr, m.IconUrl);
+    public static ModuleDto FromEntity(Domain.Entities.Module m, Language lang) =>
+        new(m.Id, lang.Localize(m.NameEn, m.NameAr), m.IconUrl);
 }
 
-public record CategoryDto(Guid Id, string NameEn, string NameAr, string? ImageUrl)
+public record CategoryDto(Guid Id, string Name, string? ImageUrl)
 {
-    public static CategoryDto FromEntity(Domain.Entities.Category c) =>
-        new(c.Id, c.NameEn, c.NameAr, c.ImageUrl);
+    public static CategoryDto FromEntity(Domain.Entities.Category c, Language lang) =>
+        new(c.Id, lang.Localize(c.NameEn, c.NameAr), c.ImageUrl);
 }
 
-public record ModuleBannerDto(Guid Id, string ImageUrl, string? TitleEn, string? TitleAr, string? ActionUrl)
+public record ModuleBannerDto(Guid Id, string ImageUrl, string? Title, string? ActionUrl)
 {
-    public static ModuleBannerDto FromEntity(Domain.Entities.ModuleBanner b) =>
-        new(b.Id, b.ImageUrl, b.TitleEn, b.TitleAr, b.ActionUrl);
+    public static ModuleBannerDto FromEntity(Domain.Entities.ModuleBanner b, Language lang) =>
+        new(b.Id, b.ImageUrl, lang.LocalizeNullable(b.TitleEn, b.TitleAr), b.ActionUrl);
 }
 
 /// <summary>
@@ -37,45 +41,30 @@ public record ModuleBannerDto(Guid Id, string ImageUrl, string? TitleEn, string?
 /// </summary>
 public record ModuleDetailDto(
     Guid Id,
-    string NameEn,
-    string NameAr,
+    string Name,
     string? IconUrl,
     List<ModuleBannerDto> Banners,
     List<CategoryDto> Categories)
 {
-    public static ModuleDetailDto FromEntity(Domain.Entities.Module m,List<Domain.Entities.ModuleBanner> banners,List<Domain.Entities.Category> categories) =>
-        new(m.Id, m.NameEn, m.NameAr, m.IconUrl,
-         banners.Select(banner=>ModuleBannerDto.FromEntity(banner)).ToList(),
-         categories.Select(categorie=>CategoryDto.FromEntity(categorie)).ToList());
+    public static ModuleDetailDto FromEntity(
+        Domain.Entities.Module m,
+        List<Domain.Entities.ModuleBanner> banners,
+        List<Domain.Entities.Category> categories,
+        Language lang) =>
+        new(m.Id, lang.Localize(m.NameEn, m.NameAr), m.IconUrl,
+            banners.Select(b => ModuleBannerDto.FromEntity(b, lang)).ToList(),
+            categories.Select(c => CategoryDto.FromEntity(c, lang)).ToList());
 }
 
-
-
 /// <summary>
-/// Thin store card for browse grids.
-/// Full detail lives in Catalog module.
+/// Thin store card for browse grids. Full detail lives in Catalog module.
 /// </summary>
-public record StoreSummaryDto(
-    Guid Id,
-    string NameEn,
-    string NameAr,
-    string? LogoUrl,
-    decimal Rating)
+public record StoreSummaryDto(Guid Id, string Name, string? LogoUrl, decimal Rating)
 {
-    public static StoreSummaryDto FromEntity(
-        Domain.Entities.Store store) =>
-        new(
-            store.Id,
-            store.NameEn,
-            store.NameAr,
-            store.LogoUrl,
-            store.Rating);
+    public static StoreSummaryDto FromEntity(Domain.Entities.Store store, Language lang) =>
+        new(store.Id, lang.Localize(store.NameEn, store.NameAr), store.LogoUrl, store.Rating);
 
     public static IReadOnlyList<StoreSummaryDto> FromEntities(
-        IEnumerable<Domain.Entities.Store> stores) =>
-        stores
-            .Select(store =>
-                FromEntity(
-                    store))
-            .ToList();
+        IEnumerable<Domain.Entities.Store> stores, Language lang) =>
+        stores.Select(s => FromEntity(s, lang)).ToList();
 }

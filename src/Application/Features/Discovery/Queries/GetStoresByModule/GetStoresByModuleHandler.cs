@@ -8,7 +8,7 @@ using MediatR;
 namespace Application.Discovery.Queries.GetStoresByModule;
 
 public class GetStoresByModuleHandler(
-    IStoreRepository storeRepository,ICacheService cache)
+    IStoreRepository storeRepository,ICacheService cache, ICurrentLanguageProvider currentLanguageProvider)
     : IRequestHandler<GetStoresByModuleQuery, Result<PagedResult<StoreSummaryDto>>>
 {
         public async Task<Result<PagedResult<StoreSummaryDto>>> Handle(
@@ -17,7 +17,8 @@ public class GetStoresByModuleHandler(
        var CacheKey = $"module:{request.ModuleId}:stores" +
                $":cat:{request.CategoryId?.ToString() ?? "all"}" +
                $":q:{request.Search ?? ""}" +
-               $":p{request.PageNumber}:s{request.PageSize}";
+               $":p{request.PageNumber}:s{request.PageSize}"+
+               $":lang:{currentLanguageProvider.Language}";
 
           var cached = await cache.GetAsync<PagedResult<StoreSummaryDto>>(CacheKey, cancellationToken);
         if (cached is not null)
@@ -32,7 +33,7 @@ public class GetStoresByModuleHandler(
             request.PageSize,
             cancellationToken);
 
-     var strs = StoreSummaryDto.FromEntities(stores);
+     var strs = StoreSummaryDto.FromEntities(stores, currentLanguageProvider.Language);
 
         var result = PagedResult<StoreSummaryDto>.Create(
             strs,

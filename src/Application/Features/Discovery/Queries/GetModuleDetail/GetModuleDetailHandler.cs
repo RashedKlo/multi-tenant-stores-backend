@@ -2,6 +2,7 @@ using Application.Discovery.DTOs;
 using Domain.Interfaces;
 using MediatR;
 using Domain.Common;
+using Application.Common.Interfaces;
 namespace Application.Discovery.Queries.GetModuleDetail;
 
 /// <summary>
@@ -10,7 +11,7 @@ namespace Application.Discovery.Queries.GetModuleDetail;
 /// while the underlying tables stay small and rarely written.
 /// </summary>
 public class GetModuleDetailHandler(
-    IModuleRepository moduleRepository)
+    IModuleRepository moduleRepository,ICurrentLanguageProvider currentLanguageProvider,ICacheService cache)
     : IRequestHandler<GetModuleDetailQuery, Result<ModuleDetailDto>>
 {
 public async Task<Result<ModuleDetailDto>> Handle(GetModuleDetailQuery request, CancellationToken ct)
@@ -22,6 +23,6 @@ public async Task<Result<ModuleDetailDto>> Handle(GetModuleDetailQuery request, 
             Error.NotFound("Module.NotFound", $"Module with id '{request.ModuleId}' was not found."));
 
     return Result<ModuleDetailDto>.Success(
-        ModuleDetailDto.FromEntity(module, module.ModuleBanners.ToList(), module.Categories.ToList()));
+        ModuleDetailDto.FromEntity(module, module.ModuleBanners.ToList(), module.Categories.ToList(), currentLanguageProvider.Language));
 }
 }

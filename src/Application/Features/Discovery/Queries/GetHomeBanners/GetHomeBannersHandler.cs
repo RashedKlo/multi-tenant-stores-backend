@@ -6,10 +6,10 @@ using MediatR;
 
 namespace Application.Discovery.Queries.GetHomeBanners;
 
-public class GetHomeBannersHandler(IHomeBannerRepository repository, ICacheService cache)
+public class GetHomeBannersHandler(IHomeBannerRepository repository, ICacheService cache,ICurrentLanguageProvider currentLanguageProvider)
     : IRequestHandler<GetHomeBannersQuery, Result<List<HomeBannerDto>>>
 {
-    private const string CacheKey = "home:banners";
+    private  string CacheKey = $"home:banners:{currentLanguageProvider.Language}";
 
     public async Task<Result<List<HomeBannerDto>>> Handle(
         GetHomeBannersQuery request, CancellationToken cancellationToken)
@@ -19,7 +19,7 @@ public class GetHomeBannersHandler(IHomeBannerRepository repository, ICacheServi
             return Result<List<HomeBannerDto>>.Success(cached);
 
         var banners = await repository.GetActiveOrderedAsync(cancellationToken);
-        var dtos = banners.Select(HomeBannerDto.FromEntity).ToList();
+        var dtos = banners.Select(b => HomeBannerDto.FromEntity(b, currentLanguageProvider.Language)).ToList();
 
         // Highest traffic-per-byte endpoint — longest TTL in this module.
         await cache.SetAsync(CacheKey, dtos, TimeSpan.FromMinutes(30), cancellationToken);

@@ -9,7 +9,8 @@ namespace Application.Catalog.Queries.GetStoreById;
 public class GetStoreByIdHandler(
     IStoreRepository storeRepository,
     IFavoriteStoreRepository favoriteStoreRepository,
-    ICurrentUserService currentUser)
+    ICurrentUserService currentUser,
+    ICurrentLanguageProvider currentLanguageProvider)
     : IRequestHandler<GetStoreByIdQuery, Result<StoreDetailDto>>
 {
     public async Task<Result<StoreDetailDto>> Handle(
@@ -23,7 +24,7 @@ public class GetStoreByIdHandler(
             && await favoriteStoreRepository.ExistsAsync(
                 currentUser.CustomerId!.Value, store.Id, cancellationToken);
 
-        var dto = StoreDetailDto.FromEntity(store, isFavorite);
+        var dto = StoreDetailDto.FromEntity(store, isFavorite, currentLanguageProvider.Language);
         return Result<StoreDetailDto>.Success(dto);
     }
 }

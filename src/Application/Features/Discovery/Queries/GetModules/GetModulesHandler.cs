@@ -6,10 +6,10 @@ using MediatR;
 
 namespace Application.Discovery.Queries.GetModules;
 
-public class GetModulesHandler(IModuleRepository repository, ICacheService cache)
+public class GetModulesHandler(IModuleRepository repository, ICacheService cache, ICurrentLanguageProvider currentLanguageProvider)
     : IRequestHandler<GetModulesQuery, Result<List<ModuleDto>>>
 {
-    private const string CacheKey = "modules:all";
+    private  string CacheKey = $"modules:all:{currentLanguageProvider.Language}";
 
     public async Task<Result<List<ModuleDto>>> Handle(
         GetModulesQuery request, CancellationToken cancellationToken)
@@ -19,7 +19,7 @@ public class GetModulesHandler(IModuleRepository repository, ICacheService cache
             return Result<List<ModuleDto>>.Success(cached);
 
         var modules = await repository.GetActiveOrderedAsync(cancellationToken);
-        var dtos = modules.Select(ModuleDto.FromEntity).ToList();
+        var dtos = modules.Select(m => ModuleDto.FromEntity(m, currentLanguageProvider.Language)).ToList();
 
         await cache.SetAsync(CacheKey, dtos, TimeSpan.FromMinutes(30), cancellationToken);
         return Result<List<ModuleDto>>.Success(dtos);

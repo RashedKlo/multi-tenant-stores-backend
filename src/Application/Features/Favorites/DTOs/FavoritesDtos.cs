@@ -1,25 +1,22 @@
+using Application.Common.Extensions;
+using Application.Common.Interfaces;
+
 namespace Application.Favorites.DTOs;
 
-// Deliberately its own shape, not a reuse of Catalog's ProductSummaryDto —
-// IsFavorite would always be a hardcoded true here, which is a smell that
-// the DTO doesn't fit the context. FavoritedAt is the one field this page
-// actually needs that a generic product card doesn't.
 public record FavoriteProductDto(
     Guid ProductId,
-    string NameEn,
-    string NameAr,
+    string Name,
     string? ThumbnailUrl,
     decimal Price,
     bool InStock,
     DateTime FavoritedAt)
 {
-    public static FavoriteProductDto FromEntity(Domain.Entities.FavoriteProduct f)
+    public static FavoriteProductDto FromEntity(Domain.Entities.FavoriteProduct f, Language lang)
     {
-        var p = f.Product; // always loaded — see repository's .Include(f => f.Product)
+        var p = f.Product;
         return new(
             p.Id,
-            p.NameEn,
-            p.NameAr,
+            lang.Localize(p.NameEn, p.NameAr),
             p.Images.Select(i => i.ImageUrl).FirstOrDefault(),
             p.Price,
             InStock: !p.TrackInventory || p.StockQuantity > 0,
@@ -29,15 +26,14 @@ public record FavoriteProductDto(
 
 public record FavoriteStoreDto(
     Guid StoreId,
-    string NameEn,
-    string NameAr,
+    string Name,
     string? LogoUrl,
     decimal Rating,
     DateTime FavoritedAt)
 {
-    public static FavoriteStoreDto FromEntity(Domain.Entities.FavoriteStore f)
+    public static FavoriteStoreDto FromEntity(Domain.Entities.FavoriteStore f, Language lang)
     {
-        var s = f.Store; // always loaded — see repository's .Include(f => f.Store)
-        return new(s.Id, s.NameEn, s.NameAr, s.LogoUrl, s.Rating, f.CreatedAt);
+        var s = f.Store;
+        return new(s.Id, lang.Localize(s.NameEn, s.NameAr), s.LogoUrl, s.Rating, f.CreatedAt);
     }
 }

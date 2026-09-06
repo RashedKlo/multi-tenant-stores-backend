@@ -9,7 +9,8 @@ namespace Application.Favorites.Queries.GetFavoriteProducts;
 
 public class GetFavoriteProductsHandler(
     IFavoriteProductRepository repository,
-    ICurrentUserService currentUser)
+    ICurrentUserService currentUser,
+    ICurrentLanguageProvider currentLanguageProvider)
     : IRequestHandler<GetFavoriteProductsQuery, Result<PagedResult<FavoriteProductDto>>>
 {
     public async Task<Result<PagedResult<FavoriteProductDto>>> Handle(
@@ -25,7 +26,7 @@ public class GetFavoriteProductsHandler(
             request.PageSize,
             cancellationToken);
 
-        var dtos = items.Select(FavoriteProductDto.FromEntity).ToList();
+        var dtos = items.Select(item => FavoriteProductDto.FromEntity(item, currentLanguageProvider.Language)).ToList();
 
         var result = PagedResult<FavoriteProductDto>.Create(
             dtos,
