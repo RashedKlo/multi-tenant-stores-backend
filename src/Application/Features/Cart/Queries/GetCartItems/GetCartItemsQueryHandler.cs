@@ -9,11 +9,13 @@ public sealed class GetCartItemsQueryHandler
 {
     private readonly ICartQueries _cartQueries;
     private readonly ICurrentUserService _currentUser;
+    private readonly ICurrentLanguageProvider _currentLanguageProvider;
 
-    public GetCartItemsQueryHandler(ICartQueries cartQueries, ICurrentUserService currentUser)
+    public GetCartItemsQueryHandler(ICartQueries cartQueries, ICurrentUserService currentUser, ICurrentLanguageProvider currentLanguageProvider)
     {
         _cartQueries = cartQueries;
         _currentUser = currentUser;
+        _currentLanguageProvider = currentLanguageProvider;
     }
 
     public async Task<IReadOnlyList<CartItemDto>> Handle(
@@ -30,6 +32,6 @@ public sealed class GetCartItemsQueryHandler
         if (customerId is null && guestSessionId is null)
             return [];
 
-        return await _cartQueries.GetCartItemsAsync(customerId, guestSessionId);
+        return await _cartQueries.GetCartItemsAsync(customerId, guestSessionId, _currentLanguageProvider.Language);
     }
 }

@@ -3,28 +3,24 @@ using System.Text.Json.Serialization;
 
 namespace Application.Common.Models;
 
-
-
 public sealed record CartItemDto(
     Guid CartItemId,
     Guid CartId,
     Guid StoreId,
     Guid ProductId,
-    string ProductNameEn,
-    string ProductNameAr,
+    string ProductName,
+    string ProductImage,
     decimal BasePrice,
     int Quantity,
     string? Notes,
     IReadOnlyList<SelectedOptionDto> SelectedOptions,
     decimal ItemTotalPrice);
+
 public sealed record SelectedOptionDto(
     [property: JsonPropertyName("option_id")] Guid OptionId,
-    [property: JsonPropertyName("group_name_en")] string GroupNameEn,
-    [property: JsonPropertyName("group_name_ar")] string GroupNameAr,
-    [property: JsonPropertyName("option_name_en")] string OptionNameEn,
-    [property: JsonPropertyName("option_name_ar")] string OptionNameAr,
+    [property: JsonPropertyName("group_name")] string GroupName,
+    [property: JsonPropertyName("option_name")] string OptionName,
     [property: JsonPropertyName("price_adjustment")] decimal PriceAdjustment);
-
 
 public sealed record CheckoutCartDto(
     Guid CartId,
@@ -34,7 +30,7 @@ public sealed record CheckoutCartDto(
 public sealed record CheckoutCartItemDto(
     Guid CartItemId,
     Guid ProductId,
-    string NameEn,
+   string NameEn,
     string NameAr,
     decimal UnitPrice,
     int Quantity,
@@ -50,10 +46,7 @@ public sealed record CheckoutCartItemDto(
         (!TrackInventory || StockQuantity >= Quantity);
 
     public decimal OptionsTotal => Options.Sum(o => o.PriceAdjustment);
-
-    /// <summary>Product price + selected option adjustments (one unit).</summary>
     public decimal EffectiveUnitPrice => UnitPrice + OptionsTotal;
-
     public decimal LineTotal => EffectiveUnitPrice * Quantity;
 }
 
@@ -67,4 +60,3 @@ public sealed record CheckoutOptionDto(
 {
     public bool IsAvailable => IsActive && DeletedAt is null;
 }
-

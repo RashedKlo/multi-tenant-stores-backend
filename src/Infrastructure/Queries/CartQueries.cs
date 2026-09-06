@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Application.Common.Extensions;     // LocalizationExtensions
 using Application.Common.Interfaces;
 using Application.Common.Models;
 using Dapper;
@@ -14,16 +15,20 @@ public class CartQueries : ICartQueries
     public CartQueries(IDbConnectionFactory connectionFactory)
         => _connectionFactory = connectionFactory;
 
-    public async Task<IReadOnlyList<CartItemDto>> GetCartItemsAsync(Guid? customerId, Guid? guestSessionId)
+    public async Task<IReadOnlyList<CartItemDto>> GetCartItemsAsync(
+        Guid? customerId,
+        Guid? guestSessionId,
+        Language lang)
     {
         const string sql = """
-            SELECT
+             SELECT
                 ci.id                                             AS CartItemId,
                 ci.cart_id                                         AS CartId,
                 c.store_id                                         AS StoreId,
                 ci.product_id                                      AS ProductId,
                 p.name_en                                          AS ProductNameEn,
                 p.name_ar                                          AS ProductNameAr,
+                pi.image_url                                       AS ProductImage,
                 p.price                                            AS BasePrice,
                 ci.quantity                                        AS Quantity,
                 ci.notes                                           AS Notes,
@@ -32,15 +37,16 @@ public class CartQueries : ICartQueries
             FROM carts c
             JOIN cart_items ci ON ci.cart_id = c.id
             JOIN products p ON p.id = ci.product_id
+            JOIN product_images pi ON pi.product_id = p.id and pi.display_order=1
             LEFT JOIN LATERAL (
                 SELECT
                     json_agg(json_build_object(
-                        'option_id', po.id,
-                        'group_name_en', pog.name_en,
-                        'group_name_ar', pog.name_ar,
-                        'option_name_en', po.name_en,
-                        'option_name_ar', po.name_ar,
-                        'price_adjustment', po.price_adjustment
+                        'option_id',          po.id,
+                        'group_name_en',      pog.name_en,
+                        'group_name_ar',      pog.name_ar,
+                        'option_name_en',     po.name_en,
+                        'option_name_ar',     po.name_ar,
+                        'price_adjustment',   po.price_adjustment
                     )) AS selected_options,
                     SUM(po.price_adjustment) AS options_total
                 FROM cart_item_options cio
@@ -57,12 +63,10 @@ public class CartQueries : ICartQueries
         var rows = await connection.QueryAsync<CartItemRow>(
             sql, new { CustomerId = customerId, GuestSessionId = guestSessionId });
 
-        return rows.Select(MapToDto).ToList();
+        return rows.Select(r => MapToDto(r, lang)).ToList();
     }
 
-// Infrastructure/Queries/CartQueries.cs  — ADD this method + private types
-
-public async Task<CheckoutCartDto?> GetCartForCheckoutAsync(
+  public async Task<CheckoutCartDto?> GetCartForCheckoutAsync(
     Guid customerId,
     Guid storeId,
     CancellationToken cancellationToken = default)
@@ -116,8 +120,35 @@ public async Task<CheckoutCartDto?> GetCartForCheckoutAsync(
     var items = rows.Select(MapCheckoutItem).ToList();
     return new CheckoutCartDto(rows[0].CartId, rows[0].StoreId, items);
 }
+    // ───────────────────────── Mapping ─────────────────────────
 
-private static CheckoutCartItemDto MapCheckoutItem(CheckoutCartRow row)
+    private static CartItemDto MapToDto(CartItemRow row, Language lang)
+    {
+        var rawOptions = JsonSerializer.Deserialize<List<SelectedOptionRaw>>(
+            row.SelectedOptionsJson, JsonOptions) ?? [];
+
+        var options = rawOptions.Select(o => new SelectedOptionDto(
+            o.OptionId,
+            lang.Localize(o.GroupNameEn, o.GroupNameAr),
+            lang.Localize(o.OptionNameEn, o.OptionNameAr),
+            o.PriceAdjustment
+        )).ToList();
+
+        return new CartItemDto(
+            row.CartItemId,
+            row.CartId,
+            row.StoreId,
+            row.ProductId,
+            lang.Localize(row.ProductNameEn, row.ProductNameAr),
+            row.ProductImage,
+            row.BasePrice,
+            row.Quantity,
+            row.Notes,
+            options,
+            row.ItemTotalPrice);
+    }
+
+    private static CheckoutCartItemDto MapCheckoutItem(CheckoutCartRow row)
 {
     var options = JsonSerializer.Deserialize<List<CheckoutOptionRow>>(
                       row.SelectedOptionsJson, JsonOptions)
@@ -138,6 +169,34 @@ private static CheckoutCartItemDto MapCheckoutItem(CheckoutCartRow row)
         options.Select(o => new CheckoutOptionDto(
             o.OptionId, o.NameEn, o.NameAr, o.PriceAdjustment, o.IsActive, o.DeletedAt)).ToList());
 }
+
+    // ───────────────────────── Private rows ─────────────────────────
+
+    private sealed class CartItemRow
+    {
+        public Guid CartItemId { get; init; }
+        public Guid CartId { get; init; }
+        public Guid StoreId { get; init; }
+        public Guid ProductId { get; init; }
+        public string ProductNameEn { get; init; } = default!;
+        public string ProductNameAr { get; init; } = default!;
+         public string ProductImage { get; init; } = default!;
+        public decimal BasePrice { get; init; }
+        public int Quantity { get; init; }
+        public string? Notes { get; init; }
+        public string SelectedOptionsJson { get; init; } = "[]";
+        public decimal ItemTotalPrice { get; init; }
+    }
+
+    private sealed class SelectedOptionRaw
+    {
+        public Guid OptionId { get; init; }
+        public string GroupNameEn { get; init; } = default!;
+        public string GroupNameAr { get; init; } = default!;
+        public string OptionNameEn { get; init; } = default!;
+        public string OptionNameAr { get; init; } = default!;
+        public decimal PriceAdjustment { get; init; }
+    }
 
 private sealed class CheckoutCartRow
 {
@@ -166,39 +225,5 @@ private sealed class CheckoutOptionRow
     public bool IsActive { get; init; }
     public DateTime? DeletedAt { get; init; }
 }
-
-    private static CartItemDto MapToDto(CartItemRow row)
-    {
-        var options = JsonSerializer.Deserialize<List<SelectedOptionDto>>(
-            row.SelectedOptionsJson, JsonOptions) ?? [];
-
-        return new CartItemDto(
-            row.CartItemId,
-            row.CartId,
-            row.StoreId,
-            row.ProductId,
-            row.ProductNameEn,
-            row.ProductNameAr,
-            row.BasePrice,
-            row.Quantity,
-            row.Notes,
-            options,
-            row.ItemTotalPrice);
-    }
-
-    private sealed class CartItemRow
-    {
-        public Guid CartItemId { get; init; }
-        public Guid CartId { get; init; }
-        public Guid StoreId { get; init; }
-        public Guid ProductId { get; init; }
-        public string ProductNameEn { get; init; } = default!;
-        public string ProductNameAr { get; init; } = default!;
-        public decimal BasePrice { get; init; }
-        public int Quantity { get; init; }
-        public string? Notes { get; init; }
-        public string SelectedOptionsJson { get; init; } = "[]";
-        public decimal ItemTotalPrice { get; init; }
-    }
 
 }
