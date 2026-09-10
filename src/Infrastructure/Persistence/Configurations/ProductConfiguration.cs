@@ -160,16 +160,7 @@ namespace Infrastructure.Persistence.Configurations
                 .HasFilter("barcode IS NOT NULL")
                 .HasDatabaseName("uq_products_barcode");
 
-            // Relationships
-            builder.HasOne(x=>x.Section)
-                .WithMany(x=>x.Products)
-                .HasForeignKey(x => x.SectionId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            builder.HasOne(x=>x.Store)
-                .WithMany(x=>x.Products)
-                .HasForeignKey(x => x.StoreId)
-                .OnDelete(DeleteBehavior.Cascade);
+       
         }
     }
 }

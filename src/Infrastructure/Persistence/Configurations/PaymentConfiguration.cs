@@ -102,10 +102,7 @@ namespace Infrastructure.Persistence.Configurations
 
             builder.HasIndex(x => x.Status)
                 .HasDatabaseName("idx_payments_status");
-builder.HasOne(p => p.Order)                    // use Payment.Order navigation
-    .WithOne(o => o.Payment)                    // use Order.Payment navigation
-    .HasForeignKey<Payment>(p => p.OrderId)     // Payment is the dependent
-    .OnDelete(DeleteBehavior.Restrict);
+
         }
     }
 }

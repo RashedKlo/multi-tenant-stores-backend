@@ -77,10 +77,7 @@ namespace Infrastructure.Persistence.Configurations
 
             builder.HasIndex(x => x.ModuleId)
                 .HasDatabaseName("idx_categories_module_id");
-builder.HasOne(c => c.Module)                 // use the navigation
-    .WithMany(m => m.Categories)
-    .HasForeignKey(c => c.ModuleId)
-    .OnDelete(DeleteBehavior.Cascade);
+
         }
     }
 }

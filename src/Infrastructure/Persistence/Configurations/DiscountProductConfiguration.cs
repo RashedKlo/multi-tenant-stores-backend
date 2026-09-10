@@ -26,15 +26,7 @@ namespace Infrastructure.Persistence.Configurations
             builder.HasIndex(x => x.ProductId)
                 .HasDatabaseName("idx_discount_products_product_id");
 
-            builder.HasOne(x=>x.Discount)
-                .WithMany(x=>x.DiscountProducts)
-                .HasForeignKey(x => x.DiscountId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            builder.HasOne(x=>x.Product)
-                .WithMany(x=>x.DiscountProducts)
-                .HasForeignKey(x => x.ProductId)
-                .OnDelete(DeleteBehavior.Cascade);
+           
         }
     }
 }

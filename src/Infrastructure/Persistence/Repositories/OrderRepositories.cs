@@ -21,9 +21,6 @@ public class OrderRepository : IOrderRepository
         _context.Orders
             .AsNoTracking()
             .AsSplitQuery()
-            .Include(o => o.OrderItems)
-                .ThenInclude(i => i.OrderItemOptions)
-            .Include(o => o.OrderStatusHistories.OrderBy(h => h.ChangedAt))
             .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
 
     // Ownership-scoped equivalent of the above — always prefer this one from
@@ -32,9 +29,6 @@ public class OrderRepository : IOrderRepository
         _context.Orders
             .AsNoTracking()
             .AsSplitQuery()
-            .Include(o => o.OrderItems)
-                .ThenInclude(i => i.OrderItemOptions)
-            .Include(o => o.OrderStatusHistories.OrderBy(h => h.ChangedAt))
             .FirstOrDefaultAsync(o => o.Id == id && o.CustomerId == customerId, cancellationToken);
 
     // GET /api/orders?status=&page= — matches idx_orders_customer_status_created.

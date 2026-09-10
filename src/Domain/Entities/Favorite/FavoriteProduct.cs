@@ -1,37 +1,46 @@
 using Domain.Common;
 
-namespace Domain.Entities
+namespace Domain.Entities;
+
+public sealed class FavoriteProduct
 {
-    public class FavoriteProduct
+    public Guid CustomerId { get; private set; }
+    public Guid ProductId { get; private set; }
+    public DateTime CreatedAt { get; private set; }
+ 
+    public Product Product { get; private set; } = null!;
+    private FavoriteProduct()
     {
-        public Guid CustomerId { get; private set; }
+    }
 
-        public Guid ProductId { get; private set; }
-
-        public DateTime CreatedAt { get; private set; }
-        public Customer Customer { get; private set; } = null!;
-        public Product Product { get; private set; } = null!;
-
-        private FavoriteProduct()
+    public static Result<FavoriteProduct> Create(Guid customerId, Guid productId)
+    {
+        var favorite = new FavoriteProduct
         {
-        }
+            CreatedAt = DateTime.UtcNow
+        };
 
-        public static Result<FavoriteProduct> Create(Guid customerId, Guid productId)
-        {
-            var errors = new List<Error>();
-            DomainValidation.EnsureNotEmptyGuid(customerId, errors, "CustomerId");
-            DomainValidation.EnsureNotEmptyGuid(productId, errors, "ProductId");
-            if (errors.Count > 0)
-                return Result<FavoriteProduct>.Failure(errors);
+        return favorite
+            .SetCustomerId(customerId)
+            .Bind(() => favorite.SetProductId(productId))
+            .Bind(() => Result<FavoriteProduct>.Success(favorite));
+    }
 
-            var favorite = new FavoriteProduct
-            {
-                CustomerId = customerId,
-                ProductId = productId,
-                CreatedAt = DateTime.UtcNow
-            };
+    private Result SetCustomerId(Guid customerId)
+    {
+        if (customerId == Guid.Empty)
+            return Result.Failure(Error.Validation("FavoriteProduct.CustomerId.Required", "CustomerId is required."));
 
-            return Result<FavoriteProduct>.Success(favorite);
-        }
+        CustomerId = customerId;
+        return Result.Success();
+    }
+
+    private Result SetProductId(Guid productId)
+    {
+        if (productId == Guid.Empty)
+            return Result.Failure(Error.Validation("FavoriteProduct.ProductId.Required", "ProductId is required."));
+
+        ProductId = productId;
+        return Result.Success();
     }
 }

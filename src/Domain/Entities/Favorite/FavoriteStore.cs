@@ -1,38 +1,45 @@
 using Domain.Common;
 
-namespace Domain.Entities
+namespace Domain.Entities;
+
+public sealed class FavoriteStore
 {
-    public class FavoriteStore
+    public Guid CustomerId { get; private set; }
+    public Guid StoreId { get; private set; }
+    public DateTime CreatedAt { get; private set; }
+    public Store Store { get; private set; } = null!;
+    private FavoriteStore()
     {
-        public Guid CustomerId { get; private set; }
+    }
 
-        public Guid StoreId { get; private set; }
-
-        public DateTime CreatedAt { get; private set; }
-        public Customer Customer { get; private set; } = null!;
-        public Store Store { get; private set; } = null!;
-
-        private FavoriteStore()
+    public static Result<FavoriteStore> Create(Guid customerId, Guid storeId)
+    {
+        var favorite = new FavoriteStore
         {
-        }
+            CreatedAt = DateTime.UtcNow
+        };
 
-        public static Result<FavoriteStore> Create(Guid customerId, Guid storeId)
-        {
-            var errors = new List<Error>();
-            DomainValidation.EnsureNotEmptyGuid(customerId, errors, "CustomerId");
-            DomainValidation.EnsureNotEmptyGuid(storeId, errors, "StoreId");
+        return favorite
+            .SetCustomerId(customerId)
+            .Bind(() => favorite.SetStoreId(storeId))
+            .Bind(() => Result<FavoriteStore>.Success(favorite));
+    }
 
-            if (errors.Count > 0)
-                return Result<FavoriteStore>.Failure(errors);
+    private Result SetCustomerId(Guid customerId)
+    {
+        if (customerId == Guid.Empty)
+            return Result.Failure(Error.Validation("FavoriteStore.CustomerId.Required", "CustomerId is required."));
 
-            var favorite = new FavoriteStore
-            {
-                CustomerId = customerId,
-                StoreId = storeId,
-                CreatedAt = DateTime.UtcNow
-            };
+        CustomerId = customerId;
+        return Result.Success();
+    }
 
-            return Result<FavoriteStore>.Success(favorite);
-        }
+    private Result SetStoreId(Guid storeId)
+    {
+        if (storeId == Guid.Empty)
+            return Result.Failure(Error.Validation("FavoriteStore.StoreId.Required", "StoreId is required."));
+
+        StoreId = storeId;
+        return Result.Success();
     }
 }

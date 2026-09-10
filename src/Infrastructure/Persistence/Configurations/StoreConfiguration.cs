@@ -160,16 +160,6 @@ namespace Infrastructure.Persistence.Configurations
             builder.HasIndex(x => x.ModuleId)
                 .HasDatabaseName("idx_stores_module_id");
 
-            // Relationships
-            builder.HasOne(m=>m.Tenant)
-                .WithMany(s=>s.Stores)
-                .HasForeignKey(x => x.TenantId)
-                .OnDelete(DeleteBehavior.Cascade);
-  
-            builder.HasOne(m=>m.Module)
-                .WithMany(s=>s.Stores)
-                .HasForeignKey(x => x.ModuleId)
-                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

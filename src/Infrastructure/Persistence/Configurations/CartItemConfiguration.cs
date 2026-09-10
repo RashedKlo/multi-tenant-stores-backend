@@ -27,11 +27,7 @@ public class CartItemConfiguration : IEntityTypeConfiguration<CartItem>
         builder.HasIndex(x => x.CartId).HasDatabaseName("idx_cart_items_cart_id");
         builder.HasIndex(x => x.ProductId).HasDatabaseName("idx_cart_items_product_id");
 
-        // Only relationship inside the aggregate
-        builder.HasMany<CartItemOption>("_options")   
-               .WithOne()
-               .HasForeignKey(o => o.CartItemId)
-               .OnDelete(DeleteBehavior.Cascade);
+
 
       
     }

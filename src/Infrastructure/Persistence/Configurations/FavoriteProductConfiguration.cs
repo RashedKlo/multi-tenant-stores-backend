@@ -32,15 +32,7 @@ namespace Infrastructure.Persistence.Configurations
             builder.HasIndex(x => x.ProductId)
                 .HasDatabaseName("idx_favorite_products_product_id");
 
-            builder.HasOne(x=>x.Customer)
-                .WithMany(x=>x.FavoriteProducts)
-                .HasForeignKey(x => x.CustomerId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            builder.HasOne(x=>x.Product)
-                .WithMany(x=>x.FavoriteProducts)
-                .HasForeignKey(x => x.ProductId)
-                .OnDelete(DeleteBehavior.Cascade);
+   
         }
     }
 }

@@ -25,15 +25,6 @@ namespace Infrastructure.Persistence.Configurations
             builder.HasIndex(x => x.CategoryId)
                 .HasDatabaseName("idx_store_categories_category_id");
 
-            builder.HasOne(x=>x.Store)
-                .WithMany(x=>x.StoreCategories)
-                .HasForeignKey(x => x.StoreId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            builder.HasOne(x=>x.Category)
-                .WithMany(x=>x.StoreCategories)
-                .HasForeignKey(x => x.CategoryId)
-                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

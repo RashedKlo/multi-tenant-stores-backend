@@ -71,10 +71,7 @@ namespace Infrastructure.Persistence.Configurations
             builder.HasIndex(x => x.StoreId)
                 .HasDatabaseName("idx_store_banners_store_id");
 
-            builder.HasOne(x=>x.Store)
-                .WithMany(x=>x.StoreBanners)
-                .HasForeignKey(x => x.StoreId)
-                .OnDelete(DeleteBehavior.Cascade);
+         
         }
     }
 }

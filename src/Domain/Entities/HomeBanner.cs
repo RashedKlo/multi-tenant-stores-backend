@@ -1,113 +1,139 @@
 using Domain.Common;
 
-namespace Domain.Entities
+namespace Domain.Entities;
+
+public sealed class HomeBanner
 {
-    public class HomeBanner
+    public Guid Id { get; private set; }
+    public string ImageUrl { get; private set; } = string.Empty;
+    public string? TitleEn { get; private set; }
+    public string? TitleAr { get; private set; }
+    public string? SubtitleEn { get; private set; }
+    public string? SubtitleAr { get; private set; }
+    public string? ActionUrl { get; private set; }
+    public int DisplayOrder { get; private set; }
+    public bool IsActive { get; private set; }
+
+    private HomeBanner()
     {
-        public Guid Id { get; private set; }
+    }
 
-        public string ImageUrl { get; private set; } = null!;
+    public static Result<HomeBanner> Create(
+        string imageUrl,
+        string? titleEn = null,
+        string? titleAr = null,
+        string? subtitleEn = null,
+        string? subtitleAr = null,
+        string? actionUrl = null,
+        int displayOrder = 0,
+        bool isActive = true)
+    {
+        var banner = new HomeBanner();
 
-        public string? TitleEn { get; private set; }
+        return banner
+            .SetImageUrl(imageUrl)
+            .Bind(() => banner.SetDisplayOrder(displayOrder))
+            .Bind(() => banner.SetTitleEn(titleEn))
+            .Bind(() => banner.SetTitleAr(titleAr))
+            .Bind(() => banner.SetSubtitleEn(subtitleEn))
+            .Bind(() => banner.SetSubtitleAr(subtitleAr))
+            .Bind(() => banner.SetActionUrl(actionUrl))
+            .Bind(() => banner.SetIsActive(isActive))
+            .Bind(() => banner.Initialize())
+            .Bind(() => Result<HomeBanner>.Success(banner));
+    }
 
-        public string? TitleAr { get; private set; }
+    public Result Update(
+        string imageUrl,
+        string? titleEn = null,
+        string? titleAr = null,
+        string? subtitleEn = null,
+        string? subtitleAr = null,
+        string? actionUrl = null,
+        int displayOrder = 0)
+    {
+        return SetImageUrl(imageUrl)
+            .Bind(() => SetDisplayOrder(displayOrder))
+            .Bind(() => SetTitleEn(titleEn))
+            .Bind(() => SetTitleAr(titleAr))
+            .Bind(() => SetSubtitleEn(subtitleEn))
+            .Bind(() => SetSubtitleAr(subtitleAr))
+            .Bind(() => SetActionUrl(actionUrl));
+    }
 
-        public string? SubtitleEn { get; private set; }
+    public void Activate()
+    {
+        IsActive = true;
+    }
 
-        public string? SubtitleAr { get; private set; }
+    public void Deactivate()
+    {
+        IsActive = false;
+    }
 
-        public string? ActionUrl { get; private set; }
+    private Result Initialize()
+    {
+        Id = Guid.NewGuid();
+        return Result.Success();
+    }
 
-        public int DisplayOrder { get; private set; }
+    private Result SetImageUrl(string imageUrl)
+    {
+        var errors = new List<Error>();
+        imageUrl = DomainValidation.NormalizeRequiredString(imageUrl, errors, "Image URL");
 
-        public bool IsActive { get; private set; }
+        if (errors.Count > 0)
+            return Result.Failure(errors);
 
-        private HomeBanner()
-        {
-        }
+        ImageUrl = imageUrl;
+        return Result.Success();
+    }
 
-        public static Result<HomeBanner> Create(
-            string imageUrl,
-            string? titleEn = null,
-            string? titleAr = null,
-            string? subtitleEn = null,
-            string? subtitleAr = null,
-            string? actionUrl = null,
-            int displayOrder = 0,
-            bool isActive = true)
-        {
-            var errors = new List<Error>();
+    private Result SetDisplayOrder(int displayOrder)
+    {
+        var errors = new List<Error>();
+        DomainValidation.EnsureNonNegative(displayOrder, errors, "Display order");
 
-            imageUrl = DomainValidation.NormalizeRequiredString(imageUrl, errors, "Image URL");
-            DomainValidation.EnsureNonNegative(displayOrder, errors, "Display order");
+        if (errors.Count > 0)
+            return Result.Failure(errors);
 
-            titleEn = DomainValidation.NormalizeOptional(titleEn);
-            titleAr = DomainValidation.NormalizeOptional(titleAr);
-            subtitleEn = DomainValidation.NormalizeOptional(subtitleEn);
-            subtitleAr = DomainValidation.NormalizeOptional(subtitleAr);
-            actionUrl = DomainValidation.NormalizeOptional(actionUrl);
+        DisplayOrder = displayOrder;
+        return Result.Success();
+    }
 
-            if (errors.Count > 0)
-                return Result<HomeBanner>.Failure(errors);
+    private Result SetTitleEn(string? titleEn)
+    {
+        TitleEn = DomainValidation.NormalizeOptional(titleEn);
+        return Result.Success();
+    }
 
-            var banner = new HomeBanner
-            {
-                Id = Guid.NewGuid(),
-                ImageUrl = imageUrl,
-                TitleEn = titleEn,
-                TitleAr = titleAr,
-                SubtitleEn = subtitleEn,
-                SubtitleAr = subtitleAr,
-                ActionUrl = actionUrl,
-                DisplayOrder = displayOrder,
-                IsActive = isActive
-            };
+    private Result SetTitleAr(string? titleAr)
+    {
+        TitleAr = DomainValidation.NormalizeOptional(titleAr);
+        return Result.Success();
+    }
 
-            return Result<HomeBanner>.Success(banner);
-        }
+    private Result SetSubtitleEn(string? subtitleEn)
+    {
+        SubtitleEn = DomainValidation.NormalizeOptional(subtitleEn);
+        return Result.Success();
+    }
 
-        public Result Update(
-            string imageUrl,
-            string? titleEn = null,
-            string? titleAr = null,
-            string? subtitleEn = null,
-            string? subtitleAr = null,
-            string? actionUrl = null,
-            int displayOrder = 0)
-        {
-            var errors = new List<Error>();
+    private Result SetSubtitleAr(string? subtitleAr)
+    {
+        SubtitleAr = DomainValidation.NormalizeOptional(subtitleAr);
+        return Result.Success();
+    }
 
-            imageUrl = DomainValidation.NormalizeRequiredString(imageUrl, errors, "Image URL");
-            DomainValidation.EnsureNonNegative(displayOrder, errors, "Display order");
+    private Result SetActionUrl(string? actionUrl)
+    {
+        ActionUrl = DomainValidation.NormalizeOptional(actionUrl);
+        return Result.Success();
+    }
 
-            titleEn = DomainValidation.NormalizeOptional(titleEn);
-            titleAr = DomainValidation.NormalizeOptional(titleAr);
-            subtitleEn = DomainValidation.NormalizeOptional(subtitleEn);
-            subtitleAr = DomainValidation.NormalizeOptional(subtitleAr);
-            actionUrl = DomainValidation.NormalizeOptional(actionUrl);
-
-            if (errors.Count > 0)
-                return Result<HomeBanner>.Failure(errors);
-
-            ImageUrl = imageUrl;
-            TitleEn = titleEn;
-            TitleAr = titleAr;
-            SubtitleEn = subtitleEn;
-            SubtitleAr = subtitleAr;
-            ActionUrl = actionUrl;
-            DisplayOrder = displayOrder;
-
-            return Result<HomeBanner>.Success(this);
-        }
-
-        public void Activate()
-        {
-            IsActive = true;
-        }
-
-        public void Deactivate()
-        {
-            IsActive = false;
-        }
+    private Result SetIsActive(bool isActive)
+    {
+        IsActive = isActive;
+        return Result.Success();
     }
 }

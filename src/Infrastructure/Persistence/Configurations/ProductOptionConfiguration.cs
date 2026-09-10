@@ -98,10 +98,6 @@ namespace Infrastructure.Persistence.Configurations
                 .HasFilter("is_default = true")
                 .HasDatabaseName("uq_product_options_one_default");
 
-            builder.HasOne(x=>x.OptionGroup)
-                .WithMany(x=>x.Options)
-                .HasForeignKey(x => x.OptionGroupId)
-                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
