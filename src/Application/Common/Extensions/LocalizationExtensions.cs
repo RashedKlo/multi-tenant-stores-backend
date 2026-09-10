@@ -1,4 +1,6 @@
 using Application.Common.Interfaces;
+using Domain.Aggregates.Cart;
+using Domain.Interfaces;
 
 namespace Application.Common.Extensions;
 
@@ -9,4 +11,6 @@ public static class LocalizationExtensions
 
     public static string? LocalizeNullable(this Language lang, string? en, string? ar) =>
         lang == Language.Ar ? (ar ?? en) : en;
+
+   
 }

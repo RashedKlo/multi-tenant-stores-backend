@@ -4,4 +4,4 @@ using MediatR;
 
 namespace Application.Addresses.Queries.GetAddresses;
 
-public record GetAddressesQuery : IRequest<Result<List<AddressDto>>>;
+public record GetAddressesQuery : IRequest<Result<IReadOnlyList<AddressDto>>>;

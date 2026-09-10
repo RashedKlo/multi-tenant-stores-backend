@@ -1,57 +1,113 @@
-using MediatR;
-using Microsoft.AspNetCore.Mvc;
+using Api.Requests.Address;
 using Application.Addresses.Commands.CreateAddress;
 using Application.Addresses.Commands.DeleteAddress;
 using Application.Addresses.Commands.SetDefaultAddress;
 using Application.Addresses.Commands.UpdateAddress;
+using Application.Addresses.DTOs;
 using Application.Addresses.Queries.GetAddressById;
 using Application.Addresses.Queries.GetAddresses;
-using Application.Addresses.DTOs;
-using Microsoft.AspNetCore.RateLimiting;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Api.Controllers;
 
 [ApiController]
-[EnableRateLimiting("fixed")]
-[Authorize]
 [Route("api/addresses")]
+[Authorize]
+[EnableRateLimiting("fixed")]
 public class AddressesController(IMediator mediator) : ApiControllerBase
 {
+    /// <summary>
+    /// Returns all addresses of the current customer.
+    /// </summary>
     [HttpGet]
-    public async Task<ActionResult<List<AddressDto>>> GetAddresses(CancellationToken ct) =>
-        HandleResult(await mediator.Send(new GetAddressesQuery(), ct));
+    [ProducesResponseType(typeof(IReadOnlyList<AddressDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<AddressDto>>> GetAddresses(CancellationToken ct)
+        => HandleResult(await mediator.Send(new GetAddressesQuery(), ct));
 
+    /// <summary>
+    /// Returns a single address by id.
+    /// </summary>
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<AddressDto>> GetById(Guid id, CancellationToken ct) =>
-        HandleResult(await mediator.Send(new GetAddressByIdQuery(id), ct));
+    [ProducesResponseType(typeof(AddressDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<AddressDto>> GetById(
+        [FromRoute] Guid id,
+        CancellationToken ct)
+        => HandleResult(await mediator.Send(new GetAddressByIdQuery(id), ct));
 
+    /// <summary>
+    /// Creates a new address for the current customer.
+    /// </summary>
     [HttpPost]
+    [ProducesResponseType(typeof(AddressDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<AddressDto>> Create(
-        [FromBody] CreateAddressCommand command, CancellationToken ct)
+        [FromBody] AddAddressRequest request,
+        CancellationToken ct)
     {
+        var command = new CreateAddressCommand(
+            request.Label,
+            request.Latitude,
+            request.Longitude,
+            request.AddressText,
+            request.IsDefault);
+
         var result = await mediator.Send(command, ct);
 
         if (result.IsFailure)
             return HandleFailure(result);
 
-        // RESTful: 201 Created with Location header pointing at the new resource
         return CreatedAtAction(
             nameof(GetById),
             new { id = result.Value!.Id },
             result.Value);
     }
 
+    /// <summary>
+    /// Updates an existing address.
+    /// Identity comes exclusively from the route.
+    /// </summary>
     [HttpPut("{id:guid}")]
+    [ProducesResponseType(typeof(AddressDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<AddressDto>> Update(
-        Guid id, [FromBody] UpdateAddressCommand command, CancellationToken ct) =>
-        HandleResult(await mediator.Send(command with { Id = id }, ct));
+        [FromRoute] Guid id,
+        [FromBody] UpdateAddressRequest request,
+        CancellationToken ct)
+    {
+        var command = new UpdateAddressCommand(
+            id,
+            request.Label,
+            request.Latitude,
+            request.Longitude,
+            request.AddressText);
 
+        return HandleResult(await mediator.Send(command, ct));
+    }
+
+    /// <summary>
+    /// Soft-deletes an address.
+    /// </summary>
     [HttpDelete("{id:guid}")]
-    public async Task<ActionResult<bool>> Delete(Guid id, CancellationToken ct) =>
-        HandleResult(await mediator.Send(new DeleteAddressCommand(id), ct));
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<bool>> Delete(
+        [FromRoute] Guid id,
+        CancellationToken ct)
+        => HandleResult(await mediator.Send(new DeleteAddressCommand(id), ct));
 
+    /// <summary>
+    /// Sets the given address as the default one (unsets previous default).
+    /// </summary>
     [HttpPost("{id:guid}/set-default")]
-    public async Task<ActionResult<AddressDto>> SetDefault(Guid id, CancellationToken ct) =>
-        HandleResult(await mediator.Send(new SetDefaultAddressCommand(id), ct));
+    [ProducesResponseType(typeof(AddressDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<AddressDto>> SetDefault(
+        [FromRoute] Guid id,
+        CancellationToken ct)
+        => HandleResult(await mediator.Send(new SetDefaultAddressCommand(id), ct));
 }
