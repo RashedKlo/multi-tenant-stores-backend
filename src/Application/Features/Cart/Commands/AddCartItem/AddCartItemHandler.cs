@@ -1,69 +1,57 @@
+// Application/Features/Cart/Commands/AddCartItem/AddCartItemHandler.cs
 using Application.Common.Interfaces;
 using Domain.Common;
-using Domain.Entities;
 using Domain.Interfaces;
 using MediatR;
 
-public class AddCartItemHandler : IRequestHandler<AddCartItemCommand, Result>
+namespace Application.Features.Cart.Commands.AddCartItem;
+
+public sealed class AddCartItemHandler : IRequestHandler<AddCartItemCommand, Result>
 {
-    private readonly ICartRepository _repo;
+    private readonly ICartRepository _carts;
     private readonly ICurrentUserService _user;
 
-    public AddCartItemHandler(ICartRepository repo, ICurrentUserService user)
+    public AddCartItemHandler(ICartRepository carts, ICurrentUserService user)
     {
-        _repo = repo;
+        _carts = carts;
         _user = user;
     }
 
     public async Task<Result> Handle(AddCartItemCommand request, CancellationToken ct)
     {
-        var cartResult = await GetOrCreateCartAsync(request.StoreId, ct);
+        var cartResult = await GetOrCreateAsync(request.StoreId, ct);
         if (cartResult.IsFailure)
             return Result.Failure(cartResult.Errors);
 
-        var cart = cartResult.Value!;
+        var addResult = cartResult.Value!.AddItem(
+            request.ProductId,
+            request.Quantity,
+            request.Notes,
+            request.OptionIds);
 
-        var addResult = cart.AddItem(request.ProductId, request.Quantity, request.Notes, request.OptionIds);
         if (addResult.IsFailure)
             return addResult;
 
-        await _repo.SaveChangesAsync(ct);
+        await _carts.SaveChangesAsync(ct);
         return Result.Success();
     }
 
-    private async Task<Result<Cart>> GetOrCreateCartAsync(Guid storeId, CancellationToken ct)
+    private async Task<Result<Domain.Aggregates.Cart.Cart>> GetOrCreateAsync(Guid StoreId, CancellationToken ct)
     {
+       var cart=_user.CustomerId is not null?
+                      await _carts.GetByCustomerAndStoreAsync(_user.CustomerId.Value,StoreId, ct)
+                :_user.GuestSessionId is not null?
+                      await _carts.GetByGuestAndStoreAsync(_user.GuestSessionId.Value,StoreId, ct)
+                :null;
+        
+        if (cart is not null)
+            return Result<Domain.Aggregates.Cart.Cart>.Success(cart);
+        var created = Domain.Aggregates.Cart.Cart.Create(StoreId, _user.CustomerId, _user.GuestSessionId);
        
-        if (_user.CustomerId is Guid customerId)
-        {
-            var existing = await _repo.GetForUpdateByCustomerAndStoreAsync(customerId, storeId, ct);
-            if (existing is not null)
-                return Result<Cart>.Success(existing);
-
-            var created = Cart.CreateForCustomer(customerId, storeId);
-            if (created.IsFailure)
-                return created;
-
-            await _repo.AddAsync(created.Value!, ct);
+        if (created.IsFailure)
             return created;
-        }
 
-       else if (_user.GuestSessionId is Guid guestSessionId)
-        {
-
-            var existing = await _repo.GetForUpdateByGuestSessionAndStoreAsync(guestSessionId, storeId, ct);
-            if (existing is not null)
-                return Result<Cart>.Success(existing);
-
-            var created = Cart.CreateForGuest(guestSessionId, storeId);
-            if (created.IsFailure)
-                return created;
-
-            await _repo.AddAsync(created.Value!, ct);
-            return created;
-        }
-
-        return Result<Cart>.Failure(
-            new Error("Cart.UserNotFound", "No active customer or guest session was found."));
+        await _carts.AddAsync(created.Value!, ct);
+        return created;
     }
 }

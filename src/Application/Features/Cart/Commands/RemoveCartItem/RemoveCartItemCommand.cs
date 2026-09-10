@@ -1,4 +1,9 @@
+// Application/Features/Cart/Commands/RemoveCartItem/RemoveCartItemCommand.cs
 using Domain.Common;
 using MediatR;
 
-public record RemoveCartItemCommand(Guid CartItemId, Guid StoreId) : IRequest<Result>;
+namespace Application.Features.Cart.Commands.RemoveCartItem;
+
+public sealed record RemoveCartItemCommand(
+    Guid CartItemId,
+    Guid StoreId) : IRequest<Result>;

@@ -1,6 +1,5 @@
 // Application/Common/Interfaces/ICartQueries.cs
-using Application.Common.Models;
-
+using Application.Features.Cart.DTOs;
 namespace Application.Common.Interfaces;
 
 public interface ICartQueries

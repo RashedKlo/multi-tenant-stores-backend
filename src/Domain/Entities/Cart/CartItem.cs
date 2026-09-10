@@ -1,73 +1,132 @@
-using System.Globalization;
+// Domain/Aggregates/Cart/CartItem.cs
 using Domain.Common;
 
-namespace Domain.Entities
+namespace Domain.Aggregates.Cart;
+
+public sealed class CartItem
 {
-    public class CartItem
+    public Guid Id { get; private set; }
+    public Guid CartId { get; private set; }
+    public Guid ProductId { get; private set; }
+    public int Quantity { get; private set; }
+    public string? Notes { get; private set; }
+    public DateTime CreatedAt { get; private set; }
+    public DateTime UpdatedAt { get; private set; }
+
+    private readonly List<CartItemOption> _options = new();
+    public IReadOnlyCollection<CartItemOption> Options => _options.AsReadOnly();
+
+    private CartItem() { }
+
+    internal static Result<CartItem> Create(
+        Guid cartId,
+        Guid productId,
+        int quantity,
+        string? notes = null,
+        IEnumerable<Guid>? optionIds = null)
     {
-        public Guid Id { get; private set; }
-        public Guid CartId { get; private set; }
-        public Guid ProductId { get; private set; }
-        public int Quantity { get; private set; }
-        public string? Notes { get; private set; }
-        public DateTime CreatedAt { get; private set; }
-        public DateTime UpdatedAt { get; private set; }
-
-        public Cart Cart { get; private set; } = null!;
-        public Product Product { get; private set; } = null!;
-
-public ICollection<CartItemOption> CartItemOptions { get; private set; } = new List<CartItemOption>();
-
-        private CartItem() { }
-
-        public static Result<CartItem> Create(Guid cartId, Guid productId, int quantity, string? notes = null)
+        var item = new CartItem
         {
-            var errors = new List<Error>();
-            DomainValidation.EnsureNotEmptyGuid(cartId, errors, "CartId");
-            DomainValidation.EnsureNotEmptyGuid(productId, errors, "ProductId");
-            DomainValidation.EnsurePositive(quantity, errors, "Quantity");
-            notes = DomainValidation.NormalizeOptional(notes);
+            Id = Guid.NewGuid(),
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
 
-            if (errors.Count > 0)
-                return Result<CartItem>.Failure(errors);
+        var result = item
+            .SetCartId(cartId)
+            .Bind(() => item.SetProductId(productId))
+            .Bind(() => item.SetQuantity(quantity))
+            .Bind(() => item.SetNotes(notes));
 
-            return Result<CartItem>.Success(new CartItem
+        if (result.IsFailure)
+            return Result<CartItem>.Failure(result.Errors);
+
+        if (optionIds is not null)
+        {
+            foreach (var optionId in optionIds.Distinct())
             {
-                Id = Guid.NewGuid(),
-                CartId = cartId,
-                ProductId = productId,
-                Quantity = quantity,
-                Notes = notes,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            });
+                var optResult = CartItemOption.Create(item.Id, optionId);
+                if (optResult.IsFailure)
+                    return Result<CartItem>.Failure(optResult.Errors);
+
+                item._options.Add(optResult.Value!);
+            }
         }
 
-        public Result Update(int quantity, string? notes = null)
+        return Result<CartItem>.Success(item);
+    }
+
+    // ---------- Field-level setters (invariants live here) ----------
+
+    private Result SetCartId(Guid cartId)
+    {
+        if (cartId == Guid.Empty)
+            return Result.Failure(Error.Validation("CartItem.CartId.Required", "CartId is required."));
+
+        CartId = cartId;
+        return Result.Success();
+    }
+
+    private Result SetProductId(Guid productId)
+    {
+        if (productId == Guid.Empty)
+            return Result.Failure(Error.Validation("CartItem.ProductId.Required", "ProductId is required."));
+
+        ProductId = productId;
+        return Result.Success();
+    }
+
+    public Result SetQuantity(int quantity)
+    {
+        if (quantity <= 0)
+            return Result.Failure(Error.Validation("CartItem.Quantity.NotPositive", "Quantity must be greater than zero."));
+
+        Quantity = quantity;
+        Touch();
+        return Result.Success();
+    }
+
+    public Result SetNotes(string? notes)
+    {
+        if (notes is null)
         {
-            var errors = new List<Error>();
-            DomainValidation.EnsurePositive(quantity, errors, "Quantity");
-            notes = DomainValidation.NormalizeOptional(notes);
-
-            if (errors.Count > 0)
-                return Result.Failure(errors);
-
-            Quantity = quantity;
-            Notes = notes;
-            UpdatedAt = DateTime.UtcNow;
+            Notes = null;
+            Touch();
             return Result.Success();
         }
 
-        public Result IncreaseQuantity(int amount = 1)
+        var trimmed = notes.Trim();
+        if (trimmed.Length == 0)
         {
-            if (amount <= 0)
-                return Result.Failure(new Error("Amount.NonPositive", "Amount must be positive."));
-
-            Quantity += amount;
-            UpdatedAt = DateTime.UtcNow;
+            Notes = null;
+            Touch();
             return Result.Success();
         }
 
-        internal void AddOption(CartItemOption option) => CartItemOptions.Add(option);
+        if (trimmed.Length > 500)
+            return Result.Failure(Error.Validation("CartItem.Notes.TooLong", "Notes cannot exceed 500 characters."));
+
+        Notes = trimmed;
+        Touch();
+        return Result.Success();
+    }
+
+    public Result IncreaseQuantity(int amount = 1)
+    {
+        if (amount <= 0)
+            return Result.Failure(Error.Validation("CartItem.Amount.NotPositive", "Amount must be greater than zero."));
+
+        Quantity += amount;
+        Touch();
+        return Result.Success();
+    }
+
+    internal void Touch() => UpdatedAt = DateTime.UtcNow;
+
+    internal bool HasSameOptions(IEnumerable<Guid>? optionIds)
+    {
+        var existing = _options.Select(o => o.OptionId).OrderBy(x => x);
+        var incoming = (optionIds ?? Enumerable.Empty<Guid>()).OrderBy(x => x);
+        return existing.SequenceEqual(incoming);
     }
 }

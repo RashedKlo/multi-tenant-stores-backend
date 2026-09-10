@@ -1,41 +1,72 @@
-using Application.Carts.Queries.GetCartItems;
-using Application.Common.Models;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
+using Application.Features.Cart.DTOs;
+using Application.Features.Cart.Commands.AddCartItem;      
+using Application.Features.Cart.Commands.UpdateCartItem;
+using Application.Features.Cart.Commands.RemoveCartItem;
+using Application.Features.Cart.Commands.ClearCart;
+using Application.Features.Cart.Queries.GetCartItems;
+using Api.Requests.Cart;
 
 namespace Api.Controllers;
 
 [ApiController]
-[Route("api")]
-[EnableRateLimiting("fixed")]
+[Route("api/cart")]
 public class CartController(IMediator mediator) : ApiControllerBase
 {
     /// <summary>
-    /// Get current cart for the authenticated customer or guest session.
-    /// Always returns a CartDto (empty cart if none exists yet) — this query never fails.
+    /// Returns the current cart items for the authenticated customer or guest session.
+    /// Always succeeds — returns an empty list when no cart exists.
     /// </summary>
-    [HttpGet("cart")]
-public async Task<ActionResult<IReadOnlyList<CartItemDto>>> GetCart(CancellationToken ct) =>
-    Ok(await mediator.Send(new GetCartItemsQuery(), ct));
+    [HttpGet]
+    [ProducesResponseType(typeof(IReadOnlyList<CartItemDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<CartItemDto>>> GetCart(CancellationToken ct)
+        => HandleResult(await mediator.Send(new GetCartItemsQuery(), ct));
 
-    [HttpPost("cart/items")]
+    /// <summary>
+    /// Adds an item to the cart (creates the cart if it does not exist).
+    /// </summary>
+    [HttpPost("items")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult> AddItem(
-        [FromBody] AddCartItemCommand command, CancellationToken ct) =>
-        HandleResult(await mediator.Send(command, ct));
+        [FromBody] AddCartItemRequest command,
+        CancellationToken ct)
+        => HandleResult(await mediator.Send(new AddCartItemCommand(command.StoreId, command.ProductId, command.Quantity, command.Notes, command.OptionIds), ct));
 
-    [HttpPut("cart/items/{id:guid}")]
+    /// <summary>
+    /// Updates the quantity of an existing cart item.
+    /// Identity comes exclusively from the route. Any CartItemId in the body is ignored.
+    /// </summary>
+    [HttpPut("items/{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult> UpdateItem(
-        Guid id, [FromBody] UpdateCartItemCommand command, CancellationToken ct) =>
-        HandleResult(await mediator.Send(command with { CartItemId = id }, ct));
+       [FromRoute] Guid id,
+        [FromBody] UpdateCartItemRequest command,
+        CancellationToken ct)
+        => HandleResult(await mediator.Send(new UpdateCartItemCommand(id, command.StoreId, command.Quantity), ct));
 
-    [HttpDelete("cart/items/{id:guid}")]
+    /// <summary>
+    /// Removes a single item from the cart.
+    /// </summary>
+    [HttpDelete("items/{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult> RemoveItem(
-        Guid id, [FromQuery] Guid storeId, CancellationToken ct) =>
-        HandleResult(await mediator.Send(new RemoveCartItemCommand(id, storeId), ct));
+       [FromRoute] Guid id,
+        [FromQuery] Guid storeId,
+        CancellationToken ct)
+        => HandleResult(await mediator.Send(new RemoveCartItemCommand(id, storeId), ct));
 
-    [HttpDelete("cart")]
+    /// <summary>
+    /// Clears all items from the cart of the given store.
+    /// </summary>
+    [HttpDelete]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<ActionResult> ClearCart(
-        [FromQuery] Guid storeId, CancellationToken ct) =>
-        HandleResult(await mediator.Send(new ClearCartCommand(storeId), ct));
+        [FromQuery] Guid storeId,
+        CancellationToken ct)
+        => HandleResult(await mediator.Send(new ClearCartCommand(storeId), ct));
 }

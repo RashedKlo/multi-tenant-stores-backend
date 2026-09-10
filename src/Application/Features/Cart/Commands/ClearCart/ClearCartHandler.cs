@@ -1,54 +1,41 @@
+// Application/Features/Cart/Commands/ClearCart/ClearCartHandler.cs
 using Application.Common.Interfaces;
 using Domain.Common;
-using Domain.Entities;
 using Domain.Interfaces;
 using MediatR;
 
+namespace Application.Features.Cart.Commands.ClearCart;
 
-public class ClearCartHandler : IRequestHandler<ClearCartCommand, Result>
+public sealed class ClearCartHandler : IRequestHandler<ClearCartCommand, Result>
 {
-    private readonly ICartRepository _repo;
+    private readonly ICartRepository _carts;
     private readonly ICurrentUserService _user;
 
-    public ClearCartHandler(ICartRepository repo, ICurrentUserService user)
+    public ClearCartHandler(ICartRepository carts, ICurrentUserService user)
     {
-        _repo = repo;
+        _carts = carts;
         _user = user;
     }
 
     public async Task<Result> Handle(ClearCartCommand request, CancellationToken ct)
     {
-        var cartResult = await GetCartAsync(request.StoreId, ct);
-        if (cartResult.IsFailure)
-            return Result.Success(); // already empty
+        var cart=_user.CustomerId is not null?
+                      await _carts.GetByCustomerAndStoreAsync(_user.CustomerId.Value, request.StoreId, ct)
+                :_user.GuestSessionId is not null?
+                      await _carts.GetByGuestAndStoreAsync(_user.GuestSessionId.Value, request.StoreId, ct)
+                :null;
+                
 
-        var cart = cartResult.Value!;
+        if (cart is null)
+            return Result.Failure(Error.NotFound("Cart.NotFound", "Cart not found."));
 
-        var result = cart.ClearItems();
+
+        var result = cart.Clear();
         if (result.IsFailure)
             return result;
 
-        await _repo.SaveChangesAsync(ct);
-
+        await _carts.SaveChangesAsync(ct);
         return Result.Success();
     }
-
-    private async Task<Result<Cart>> GetCartAsync(Guid storeId, CancellationToken ct)
-    {
-        if (_user.CustomerId is Guid customerId)
-        {
-            var existing = await _repo.GetForUpdateByCustomerAndStoreAsync(customerId, storeId, ct);
-            if (existing is not null)
-                return Result<Cart>.Success(existing);
-        }
-        else if (_user.GuestSessionId is Guid guestSessionId)
-        {
-            var existing = await _repo.GetForUpdateByGuestSessionAndStoreAsync(guestSessionId, storeId, ct);
-            if (existing is not null)
-                return Result<Cart>.Success(existing);
-        }
-
-        return Result<Cart>.Failure(
-            new Error("Cart.NotFound", "Cart not found."));
-    }
+ 
 }

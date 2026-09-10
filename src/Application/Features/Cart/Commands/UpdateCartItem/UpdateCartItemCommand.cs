@@ -1,4 +1,10 @@
+// Application/Features/Cart/Commands/UpdateCartItem/UpdateCartItemCommand.cs
 using Domain.Common;
 using MediatR;
 
-public record UpdateCartItemCommand(Guid CartItemId, Guid StoreId, int Quantity) : IRequest<Result>;
+namespace Application.Features.Cart.Commands.UpdateCartItem;
+
+public sealed record UpdateCartItemCommand(
+    Guid CartItemId,
+    Guid StoreId,
+    int Quantity) : IRequest<Result>;

@@ -1,10 +1,9 @@
 using System.Text.Json;
 using Application.Common.Extensions;     // LocalizationExtensions
 using Application.Common.Interfaces;
-using Application.Common.Models;
 using Dapper;
 using Infrastructure.Persistence;
-
+using Application.Features.Cart.DTOs;
 namespace Infrastructure.Queries;
 
 public class CartQueries : ICartQueries

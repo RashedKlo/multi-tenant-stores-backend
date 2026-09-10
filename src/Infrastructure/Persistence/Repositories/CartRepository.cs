@@ -1,54 +1,54 @@
-using Domain.Entities;
+// Infrastructure/Persistence/Repositories/CartRepository.cs
+using Domain.Aggregates.Cart;
 using Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
-namespace Infrastructure.Persistence;
+namespace Infrastructure.Persistence.Repositories;
 
-public class CartRepository : ICartRepository
+public sealed class CartRepository : ICartRepository
 {
-    private readonly AppDbContext _context;
+    private readonly AppDbContext _db;
 
-    public CartRepository(AppDbContext context) => _context = context;
+    public CartRepository(AppDbContext db) => _db = db;
 
-    public Task<Cart?> GetForUpdateByCustomerAndStoreAsync(
-        Guid customerId, Guid storeId, CancellationToken ct = default)
-        => GetForUpdateAsync(c => c.CustomerId == customerId && c.StoreId == storeId, ct);
+    public Task<Cart?> GetByIdAsync(Guid id, CancellationToken ct = default)
+        => QueryForUpdate()
+            .FirstOrDefaultAsync(c => c.Id == id, ct);
 
-    public Task<Cart?> GetForUpdateByGuestSessionAndStoreAsync(
-        Guid guestSessionId, Guid storeId, CancellationToken ct = default)
-        => GetForUpdateAsync(c => c.GuestSessionId == guestSessionId && c.StoreId == storeId, ct);
-
-    private Task<Cart?> GetForUpdateAsync(
-        System.Linq.Expressions.Expression<Func<Cart, bool>> predicate, CancellationToken ct)
-    {
-        return _context.Carts
-    .Include(c => c.CartItems)
-        .ThenInclude(ci => ci.CartItemOptions)
-    .AsSplitQuery()
-    .AsTracking()   // explicit; default is tracking, but make intent clear
-    .FirstOrDefaultAsync(predicate, ct);
-    }
-    public async Task ClearForCustomerStoreAsync(
+    public Task<Cart?> GetByCustomerAndStoreAsync(
         Guid customerId,
         Guid storeId,
         CancellationToken ct = default)
-    {
-        var cart = await GetForUpdateByCustomerAndStoreAsync(customerId, storeId, ct);
-        if (cart is null)
-            return;
+        => QueryForUpdate()
+            .FirstOrDefaultAsync(
+                c => c.CustomerId == customerId && c.StoreId == storeId,
+                ct);
 
-        // Domain method — clears CartItems collection (options cascade with EF config)
-        cart.ClearItems();
-
-        // Optional: delete the cart row entirely instead of leaving an empty cart
-        // _context.Carts.Remove(cart);
-
-        await _context.SaveChangesAsync(ct);
-    }
+    public Task<Cart?> GetByGuestAndStoreAsync(
+        Guid guestSessionId,
+        Guid storeId,
+        CancellationToken ct = default)
+        => QueryForUpdate()
+            .FirstOrDefaultAsync(
+                c => c.GuestSessionId == guestSessionId && c.StoreId == storeId,
+                ct);
 
     public async Task AddAsync(Cart cart, CancellationToken ct = default)
-        => await _context.Carts.AddAsync(cart, ct);
+        => await _db.Set<Cart>().AddAsync(cart, ct);
 
     public Task SaveChangesAsync(CancellationToken ct = default)
-        => _context.SaveChangesAsync(ct);
+        => _db.SaveChangesAsync(ct);
+
+    // ---------- private ----------
+
+    /// <summary>
+    /// Loads the full aggregate (Cart + Items + Options) with change tracking.
+    /// AsSplitQuery avoids cartesian product.
+    /// </summary>
+    private IQueryable<Cart> QueryForUpdate()
+        => _db.Set<Cart>()
+            .Include(c => c.Items)
+                .ThenInclude(i => i.Options)
+            .AsSplitQuery()
+            .AsTracking();
 }

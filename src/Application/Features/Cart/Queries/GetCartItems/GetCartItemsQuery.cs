@@ -1,7 +1,7 @@
-using Application.Common.Models;
+using Application.Features.Cart.DTOs;
+using Domain.Common;
 using MediatR;
 
-namespace Application.Carts.Queries.GetCartItems;
+namespace Application.Features.Cart.Queries.GetCartItems;
 
-
-public sealed record GetCartItemsQuery : IRequest<IReadOnlyList<CartItemDto>>;
+public sealed record GetCartItemsQuery : IRequest<Result<IReadOnlyList<CartItemDto>>>;

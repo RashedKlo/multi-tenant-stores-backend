@@ -1,7 +1,6 @@
 // Application/Common/Models/CartDto.cs
 using System.Text.Json.Serialization;
-
-namespace Application.Common.Models;
+namespace Application.Features.Cart.DTOs;
 
 public sealed record CartItemDto(
     Guid CartItemId,

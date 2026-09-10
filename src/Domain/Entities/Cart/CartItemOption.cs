@@ -1,31 +1,43 @@
+// Domain/Aggregates/Cart/CartItemOption.cs
 using Domain.Common;
 
-namespace Domain.Entities
+namespace Domain.Aggregates.Cart;
+
+public sealed class CartItemOption
 {
-    public class CartItemOption
+    public Guid CartItemId { get; private set; }
+    public Guid OptionId { get; private set; }
+
+    private CartItemOption() { }
+
+    internal static Result<CartItemOption> Create(Guid cartItemId, Guid optionId)
     {
-        public Guid CartItemId { get; private set; }
-        public Guid OptionId { get; private set; }
+        var option = new CartItemOption();
 
-        public CartItem CartItem { get; private set; } = null!;
-        public ProductOption Option { get; private set; } = null!;
+        var result = option
+            .SetCartItemId(cartItemId)
+            .Bind(() => option.SetOptionId(optionId));
 
-        private CartItemOption() { }
+        return result.IsFailure
+            ? Result<CartItemOption>.Failure(result.Errors)
+            : Result<CartItemOption>.Success(option);
+    }
 
-        public static Result<CartItemOption> Create(Guid cartItemId, Guid optionId)
-        {
-            var errors = new List<Error>();
-            DomainValidation.EnsureNotEmptyGuid(cartItemId, errors, "CartItemId");
-            DomainValidation.EnsureNotEmptyGuid(optionId, errors, "OptionId");
+    private Result SetCartItemId(Guid cartItemId)
+    {
+        if (cartItemId == Guid.Empty)
+            return Result.Failure(Error.Validation("CartItemOption.CartItemId.Required", "CartItemId is required."));
 
-            if (errors.Count > 0)
-                return Result<CartItemOption>.Failure(errors);
+        CartItemId = cartItemId;
+        return Result.Success();
+    }
 
-            return Result<CartItemOption>.Success(new CartItemOption
-            {
-                CartItemId = cartItemId,
-                OptionId = optionId
-            });
-        }
+    private Result SetOptionId(Guid optionId)
+    {
+        if (optionId == Guid.Empty)
+            return Result.Failure(Error.Validation("CartItemOption.OptionId.Required", "OptionId is required."));
+
+        OptionId = optionId;
+        return Result.Success();
     }
 }

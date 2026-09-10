@@ -1,9 +1,12 @@
+// Application/Features/Cart/Commands/AddCartItem/AddCartItemCommand.cs
 using Domain.Common;
 using MediatR;
 
-public record AddCartItemCommand(
+namespace Application.Features.Cart.Commands.AddCartItem;
+
+public sealed record AddCartItemCommand(
     Guid StoreId,
     Guid ProductId,
     int Quantity,
     string? Notes,
-    List<Guid>? OptionIds) : IRequest<Result>;
+    IReadOnlyList<Guid>? OptionIds) : IRequest<Result>;
