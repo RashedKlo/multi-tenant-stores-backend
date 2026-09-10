@@ -12,10 +12,12 @@ public class AddFavoriteStoreHandler(
     : IRequestHandler<AddFavoriteStoreCommand, Result>
 {
     public async Task<Result> Handle(
-        AddFavoriteStoreCommand request, CancellationToken cancellationToken)
+        AddFavoriteStoreCommand request,
+        CancellationToken cancellationToken)
     {
         if (!currentUser.IsAuthenticated || currentUser.CustomerId is null)
-            return Result.Failure(Error.Unauthorized("Customer.Unauthorized", "Customer must be authenticated."));
+            return Result.Failure(
+                Error.Unauthorized("Customer.Unauthorized", "Customer must be authenticated."));
 
         var customerId = currentUser.CustomerId.Value;
 

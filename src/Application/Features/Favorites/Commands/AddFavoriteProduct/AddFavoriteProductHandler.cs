@@ -12,15 +12,15 @@ public class AddFavoriteProductHandler(
     : IRequestHandler<AddFavoriteProductCommand, Result>
 {
     public async Task<Result> Handle(
-        AddFavoriteProductCommand request, CancellationToken cancellationToken)
+        AddFavoriteProductCommand request,
+        CancellationToken cancellationToken)
     {
         if (!currentUser.IsAuthenticated || currentUser.CustomerId is null)
-            return Result.Failure(Error.Unauthorized("Customer.Unauthorized", "Customer must be authenticated."));
+            return Result.Failure(
+                Error.Unauthorized("Customer.Unauthorized", "Customer must be authenticated."));
 
         var customerId = currentUser.CustomerId.Value;
 
-        // Idempotent — favoriting something already-favorited is a no-op
-        // success, not an error. A double-tap on the heart icon should never surface a failure.
         if (await favoriteRepository.ExistsAsync(customerId, request.ProductId, cancellationToken))
             return Result.Success();
 

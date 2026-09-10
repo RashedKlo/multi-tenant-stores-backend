@@ -11,18 +11,19 @@ public class RemoveFavoriteProductHandler(
     : IRequestHandler<RemoveFavoriteProductCommand, Result>
 {
     public async Task<Result> Handle(
-        RemoveFavoriteProductCommand request, CancellationToken cancellationToken)
+        RemoveFavoriteProductCommand request,
+        CancellationToken cancellationToken)
     {
         if (!currentUser.IsAuthenticated || currentUser.CustomerId is null)
-            return Result.Failure(Error.Unauthorized("Customer.Unauthorized", "Customer must be authenticated."));
+            return Result.Failure(
+                Error.Unauthorized("Customer.Unauthorized", "Customer must be authenticated."));
 
         var customerId = currentUser.CustomerId.Value;
 
-        var favorite = await favoriteRepository.GetAsync(customerId, request.ProductId, cancellationToken);
-        if (favorite is null)
-            return Result.Success(); // already not favorited — idempotent
+        if (!await favoriteRepository.ExistsAsync(customerId, request.ProductId, cancellationToken))
+            return Result.Success();
 
-        favoriteRepository.Delete(favorite);
+        await favoriteRepository.RemoveAsync(customerId, request.ProductId, cancellationToken);
         await favoriteRepository.SaveChangesAsync(cancellationToken);
 
         return Result.Success();
