@@ -92,16 +92,8 @@ namespace Infrastructure.Persistence.Configurations
             builder.HasIndex(x => x.CustomerId)
                 .HasDatabaseName("idx_customer_addresses_customer_id");
 
-            // Partial unique: only one default address per customer (when not deleted)
-            builder.HasIndex(x => x.CustomerId)
-                .IsUnique()
-                .HasFilter("is_default = true AND deleted_at IS NULL")
-                .HasDatabaseName("uq_customer_addresses_one_default");
+         
 
-            builder.HasOne(x=>x.Customer)
-                .WithMany(x=>x.Addresses)
-                .HasForeignKey(x => x.CustomerId)
-                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

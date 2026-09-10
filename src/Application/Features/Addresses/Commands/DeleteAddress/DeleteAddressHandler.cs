@@ -1,3 +1,4 @@
+// Application/Features/Addresses/Commands/DeleteAddress/DeleteAddressHandler.cs
 using Application.Common.Interfaces;
 using Domain.Common;
 using Domain.Interfaces;
@@ -5,27 +6,27 @@ using MediatR;
 
 namespace Application.Addresses.Commands.DeleteAddress;
 
-public class DeleteAddressHandler(
-    ICustomerAddressRepository repository,
-    ICurrentUserService currentUser)
-    : IRequestHandler<DeleteAddressCommand, Result<bool>>
+public sealed class DeleteAddressHandler(
+    ICustomerAddressRepository addresses,
+    ICurrentUserService user)
+    : IRequestHandler<DeleteAddressCommand, Result>
 {
-    public async Task<Result<bool>> Handle(
-        DeleteAddressCommand request, CancellationToken cancellationToken)
+    public async Task<Result> Handle(DeleteAddressCommand request, CancellationToken ct)
     {
-        if (!currentUser.IsAuthenticated || currentUser.CustomerId is null)
-            return Result<bool>.Failure(Error.Unauthorized("Customer.Unauthorized", "Customer must be authenticated."));
-        var customerId = currentUser.CustomerId.Value;
+        if (user.CustomerId is not Guid customerId)
+            return Result.Failure(
+                Error.Unauthorized("Customer.Unauthorized", "Customer must be authenticated."));
 
-        var address = await repository.GetByIdForCustomerAsync(request.Id, customerId, cancellationToken);
-        if (address is null 
-        || address.IsDeleted  )
-            return Result<bool>.Success(false);
+        var address = await addresses.GetByIdForCustomerAsync(request.Id, customerId, ct);
+        if (address is null || address.IsDeleted)
+            return Result.Failure(Error.NotFound("Address.NotFound", "Address not found."));
 
-        address.Delete();
-        repository.Update(address);
-        await repository.SaveChangesAsync(cancellationToken);
+        var deleteResult = address.Delete();
+        
+        if (deleteResult.IsFailure)
+            return deleteResult;
 
-        return Result<bool>.Success(true);
+        await addresses.SaveChangesAsync(ct);
+        return Result.Success();
     }
 }

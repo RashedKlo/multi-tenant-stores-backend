@@ -1,10 +1,11 @@
-using Application.Addresses.DTOs;
+using Application.Features.Addresses.DTOs;
 using Application.Common.Interfaces;
 using Domain.Common;
 using Domain.Interfaces;
 using MediatR;
+using Application.Addresses.Queries.GetAddresses;
 
-namespace Application.Addresses.Queries.GetAddresses;
+namespace Application.Features.Addresses.Queries.GetAddresses;
 
 public class GetAddressesHandler(
     ICustomerAddressRepository repository,
@@ -18,7 +19,7 @@ public class GetAddressesHandler(
             return Result<IReadOnlyList<AddressDto>>.Failure(Error.Unauthorized("Customer.Unauthorized", "Customer must be authenticated."));
         var customerId = currentUser.CustomerId.Value;
 
-        var addresses = await repository.GetByCustomerIdAsync(
+        var addresses = await repository.GetActiveByCustomerAsync(
             customerId, cancellationToken);
 
         var dtos = addresses.Select(AddressDto.FromEntity).ToList();

@@ -1,47 +1,33 @@
+// Application/Features/Customers/Commands/UpdateProfile/UpdateProfileHandler.cs
 using Application.Common.Interfaces;
 using Application.Customers.DTOs;
 using Domain.Common;
-using Domain.Entities;
 using Domain.Interfaces;
 using MediatR;
 
 namespace Application.Customers.Commands.UpdateProfile;
 
-public class UpdateProfileHandler(
-    ICustomerRepository customerRepository,
-    ICurrentUserService currentUser)
+public sealed class UpdateProfileHandler(
+    ICustomerRepository customers,
+    ICurrentUserService user)
     : IRequestHandler<UpdateProfileCommand, Result<CustomerDto>>
 {
-    public async Task<Result<CustomerDto>> Handle(
-        UpdateProfileCommand request, CancellationToken cancellationToken)
+    public async Task<Result<CustomerDto>> Handle(UpdateProfileCommand request, CancellationToken ct)
     {
-        if (!currentUser.IsAuthenticated || currentUser.CustomerId is null)
+        if (user.CustomerId is not Guid customerId)
             return Result<CustomerDto>.Failure(
                 Error.Unauthorized("Customer.Unauthorized", "Customer must be authenticated."));
 
-        var customer = await customerRepository.GetByIdAsync(
-            currentUser.CustomerId.Value, cancellationToken);
-
-        if (customer is null || customer.IsDeleted || !customer.IsActive)
+        var customer = await customers.GetByIdAsync(customerId, ct);
+        if (customer is null || customer.IsDeleted)
             return Result<CustomerDto>.Failure(
-                Error.NotFound("Customer.NotFound", "Customer not found"));
+                Error.NotFound("Customer.NotFound", "Customer not found."));
 
-        // Preserve existing password/google identity — Update overwrites PasswordHash
-        // when a value is passed; keep the current hash so we don't wipe credentials.
-        var updateResult = customer.Update(
-            request.FirstName,
-            request.LastName,
-            email: customer.Email,
-            passwordHash: customer.PasswordHash,
-            googleId: customer.GoogleId);
+        var result = customer.UpdateProfile(request.FirstName, request.LastName);
+        if (result.IsFailure)
+            return Result<CustomerDto>.Failure(result.Errors);
 
-        if (updateResult.IsFailure)
-            return Result<CustomerDto>.Failure(updateResult.Errors);
-
-
-        customerRepository.Update(customer);
-        await customerRepository.SaveChangesAsync(cancellationToken);
-
+        await customers.SaveChangesAsync(ct);
         return Result<CustomerDto>.Success(CustomerDto.FromEntity(customer));
     }
 }

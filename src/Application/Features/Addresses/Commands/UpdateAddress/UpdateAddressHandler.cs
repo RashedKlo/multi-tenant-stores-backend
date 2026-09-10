@@ -1,4 +1,5 @@
-using Application.Addresses.DTOs;
+// Application/Features/Addresses/Commands/UpdateAddress/UpdateAddressHandler.cs
+using Application.Features.Addresses.DTOs;
 using Application.Common.Interfaces;
 using Domain.Common;
 using Domain.Interfaces;
@@ -6,31 +7,32 @@ using MediatR;
 
 namespace Application.Addresses.Commands.UpdateAddress;
 
-// Deliberately has no IsDefault parameter — changing which address is
-// default is a distinct action (SetDefaultAddressCommand) with its own
-// invariant to maintain, not a side effect of an unrelated field edit.
-public class UpdateAddressHandler(
-    ICustomerAddressRepository repository,
-    ICurrentUserService currentUser)
+public sealed class UpdateAddressHandler(
+    ICustomerAddressRepository addresses,
+    ICurrentUserService user)
     : IRequestHandler<UpdateAddressCommand, Result<AddressDto>>
 {
-    public async Task<Result<AddressDto>> Handle(
-        UpdateAddressCommand request, CancellationToken cancellationToken)
+    public async Task<Result<AddressDto>> Handle(UpdateAddressCommand request, CancellationToken ct)
     {
-        if (!currentUser.IsAuthenticated || currentUser.CustomerId is null)
-            return Result<AddressDto>.Failure(Error.Unauthorized("Customer.Unauthorized", "Customer must be authenticated."));
-        var customerId = currentUser.CustomerId.Value;
+        if (user.CustomerId is not Guid customerId)
+            return Result<AddressDto>.Failure(
+                Error.Unauthorized("Customer.Unauthorized", "Customer must be authenticated."));
 
-        var address = await repository.GetByIdForCustomerAsync(
-            request.Id, customerId, cancellationToken);
+        var address = await addresses.GetByIdForCustomerAsync(request.Id, customerId, ct);
         if (address is null || address.IsDeleted)
-            return Result<AddressDto>.Failure(Error.NotFound("Address.NotFound", "Address not found"));
+            return Result<AddressDto>.Failure(
+                Error.NotFound("Address.NotFound", "Address not found."));
 
-        address.Update(request.Label, request.Latitude, request.Longitude, request.AddressText);
+        var updateResult = address.Update(
+            request.Label,
+            request.Latitude,
+            request.Longitude,
+            request.AddressText);
 
-        repository.Update(address);
-        await repository.SaveChangesAsync(cancellationToken);
+        if (updateResult.IsFailure)
+            return Result<AddressDto>.Failure(updateResult.Errors);
 
+        await addresses.SaveChangesAsync(ct);
         return Result<AddressDto>.Success(AddressDto.FromEntity(address));
     }
 }

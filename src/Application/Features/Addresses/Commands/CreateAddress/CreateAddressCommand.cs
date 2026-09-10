@@ -1,12 +1,13 @@
-using Application.Addresses.DTOs;
+// Application/Features/Addresses/Commands/CreateAddress/CreateAddressCommand.cs
+using Application.Features.Addresses.DTOs;
 using Domain.Common;
 using MediatR;
 
 namespace Application.Addresses.Commands.CreateAddress;
 
-public record CreateAddressCommand(
+public sealed record CreateAddressCommand(
     string Label,
     decimal Latitude,
     decimal Longitude,
     string AddressText,
-    bool IsDefault) : IRequest<Result<AddressDto>>;
+    bool IsDefault = false) : IRequest<Result<AddressDto>>;

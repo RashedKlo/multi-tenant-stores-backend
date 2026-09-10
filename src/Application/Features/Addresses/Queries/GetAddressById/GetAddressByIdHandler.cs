@@ -1,4 +1,4 @@
-using Application.Addresses.DTOs;
+using Application.Features.Addresses.DTOs;
 using Application.Common.Interfaces;
 using Domain.Common;
 using Domain.Interfaces;
@@ -14,11 +14,11 @@ public class GetAddressByIdHandler(
     public async Task<Result<AddressDto>> Handle(
         GetAddressByIdQuery request, CancellationToken cancellationToken)
     {
-        // Ownership-scoped by construction — a foreign address id simply
-        // doesn't exist from this customer's point of view, so it 404s
-        // rather than 403s. Don't leak whether the id exists at all.
+        if (!currentUser.IsAuthenticated || currentUser.CustomerId is null)
+            return Result<AddressDto>.Failure(Error.Unauthorized("Customer.Unauthorized", "Customer must be authenticated."));
         var address = await repository.GetByIdForCustomerAsync(
             request.Id, currentUser.CustomerId!.Value, cancellationToken);
+            
             if(address is null)
                 return Result<AddressDto>.Failure(Error.NotFound("Address.NotFound", "Address not found"));
 

@@ -1,20 +1,25 @@
+// Application/Features/Customers/DTOs/CustomerDto.cs
+using Domain.Entities;
+
 namespace Application.Customers.DTOs;
 
-public record CustomerDto(
+public sealed record CustomerDto(
     Guid Id,
     string FirstName,
     string LastName,
     string Email,
     bool IsEmailVerified,
-    bool IsActive,
+    bool HasPassword,
+    bool HasGoogleAccount,
     DateTime CreatedAt)
 {
-    public static CustomerDto FromEntity(Domain.Entities.Customer c) => new(
+    public static CustomerDto FromEntity(Customer c) => new(
         c.Id,
         c.FirstName,
         c.LastName,
         c.Email,
         c.IsEmailVerified,
-        c.IsActive,
+        HasPassword: c.PasswordHash is not null,
+        HasGoogleAccount: c.GoogleId is not null,
         c.CreatedAt);
 }

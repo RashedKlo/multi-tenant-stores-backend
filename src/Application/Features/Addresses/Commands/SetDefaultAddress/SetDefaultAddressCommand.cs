@@ -1,4 +1,4 @@
-using Application.Addresses.DTOs;
+using Application.Features.Addresses.DTOs;
 using Domain.Common;
 using MediatR;
 

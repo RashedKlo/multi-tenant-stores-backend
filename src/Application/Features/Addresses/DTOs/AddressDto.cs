@@ -1,13 +1,23 @@
-namespace Application.Addresses.DTOs;
+// Application/Features/Addresses/DTOs/AddressDto.cs
+using Domain.Entities;
 
-public record AddressDto(
+namespace Application.Features.Addresses.DTOs;
+
+public sealed record AddressDto(
     Guid Id,
     string Label,
     decimal Latitude,
     decimal Longitude,
     string AddressText,
-    bool IsDefault)
+    bool IsDefault,
+    DateTime CreatedAt)
 {
-    public static AddressDto FromEntity(Domain.Entities.CustomerAddress a) => new(
-        a.Id, a.Label, a.Latitude, a.Longitude, a.AddressText, a.IsDefault);
+    public static AddressDto FromEntity(CustomerAddress a) => new(
+        a.Id,
+        a.Label,
+        a.Latitude,
+        a.Longitude,
+        a.AddressText,
+        a.IsDefault,
+        a.CreatedAt);
 }

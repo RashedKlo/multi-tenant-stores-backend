@@ -1,3 +1,4 @@
+// Application/Features/Customers/Queries/GetMe/GetMeQueryHandler.cs
 using Application.Common.Interfaces;
 using Application.Customers.DTOs;
 using Domain.Common;
@@ -6,24 +7,21 @@ using MediatR;
 
 namespace Application.Customers.Queries.GetMe;
 
-public class GetMeHandler(
-    ICustomerRepository customerRepository,
-    ICurrentUserService currentUser)
+public sealed class GetMeQueryHandler(
+    ICustomerRepository customers,
+    ICurrentUserService user)
     : IRequestHandler<GetMeQuery, Result<CustomerDto>>
 {
-    public async Task<Result<CustomerDto>> Handle(
-        GetMeQuery request, CancellationToken cancellationToken)
+    public async Task<Result<CustomerDto>> Handle(GetMeQuery request, CancellationToken ct)
     {
-        if (!currentUser.IsAuthenticated || currentUser.CustomerId is null)
+        if (user.CustomerId is not Guid customerId)
             return Result<CustomerDto>.Failure(
                 Error.Unauthorized("Customer.Unauthorized", "Customer must be authenticated."));
 
-        var customer = await customerRepository.GetByIdAsync(
-            currentUser.CustomerId.Value, cancellationToken);
-
-        if (customer is null || customer.IsDeleted || !customer.IsActive)
+        var customer = await customers.GetByIdAsync(customerId, ct);
+        if (customer is null || customer.IsDeleted)
             return Result<CustomerDto>.Failure(
-                Error.NotFound("Customer.NotFound", "Customer not found"));
+                Error.NotFound("Customer.NotFound", "Customer not found."));
 
         return Result<CustomerDto>.Success(CustomerDto.FromEntity(customer));
     }

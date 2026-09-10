@@ -1,54 +1,64 @@
+// Domain/Entities/Customer/GuestSession.cs
 using Domain.Common;
 
-namespace Domain.Entities
+namespace Domain.Entities;
+
+public sealed class GuestSession
 {
-    public class GuestSession
+    public Guid Id { get; private set; }
+    public string TokenHash { get; private set; } = null!;
+    public DateTime CreatedAt { get; private set; }
+    public DateTime LastSeenAt { get; private set; }
+    public DateTime ExpiresAt { get; private set; }
+
+    public bool IsExpired => DateTime.UtcNow >= ExpiresAt;
+    public bool IsActive => !IsExpired;
+
+
+    private GuestSession() { }
+
+    public static Result<GuestSession> Create(string tokenHash, DateTime expiresAt)
     {
-        public Guid Id { get; private set; }
-
-        public string TokenHash { get; private set; } = null!;
-
-        public DateTime CreatedAt { get; private set; }
-
-        public DateTime LastSeenAt { get; private set; }
-
-        public DateTime ExpiresAt { get; private set; }
-
-        public bool IsExpired => DateTime.UtcNow >= ExpiresAt;
-        public ICollection<Cart> Carts { get; private set; } = new List<Cart>();
-
-        private GuestSession()
+        var session = new GuestSession
         {
-        }
+            Id = Guid.NewGuid(),
+            CreatedAt = DateTime.UtcNow,
+            LastSeenAt = DateTime.UtcNow
+        };
 
-        public static Result<GuestSession> Create(string tokenHash, DateTime expiresAt)
-        {
-            var errors = new List<Error>();
+        return session
+            .SetTokenHash(tokenHash)
+            .Bind(() => session.SetExpiresAt(expiresAt))
+            .Bind(() => Result<GuestSession>.Success(session));
+    }
 
-            tokenHash = DomainValidation.NormalizeRequiredHash(tokenHash, errors, "Token hash");
+    private Result SetTokenHash(string tokenHash)
+    {
+        if (string.IsNullOrWhiteSpace(tokenHash))
+            return Result.Failure(Error.Validation(
+                "GuestSession.TokenHash.Required", "Token hash is required."));
 
-           DomainValidation.EnsureInFuture(expiresAt, errors, "GuestSessionExpiresAt");
+        TokenHash = tokenHash.Trim();
+        return Result.Success();
+    }
 
-            if (errors.Count > 0)
-                return Result<GuestSession>.Failure(errors);
+    private Result SetExpiresAt(DateTime expiresAt)
+    {
+        if (expiresAt <= DateTime.UtcNow)
+            return Result.Failure(Error.Validation(
+                "GuestSession.ExpiresAt.Invalid", "Expiry must be in the future."));
 
-            var now = DateTime.UtcNow;
+        ExpiresAt = expiresAt;
+        return Result.Success();
+    }
 
-            var session = new GuestSession
-            {
-                Id = Guid.NewGuid(),
-                TokenHash = tokenHash,
-                CreatedAt = now,
-                LastSeenAt = now,
-                ExpiresAt = expiresAt
-            };
+    public Result Touch()
+    {
+        if (IsExpired)
+            return Result.Failure(Error.Validation(
+                "GuestSession.Expired", "Cannot touch an expired guest session."));
 
-            return Result<GuestSession>.Success(session);
-        }
-
-        public void Touch()
-        {
-            LastSeenAt = DateTime.UtcNow;
-        }
+        LastSeenAt = DateTime.UtcNow;
+        return Result.Success();
     }
 }

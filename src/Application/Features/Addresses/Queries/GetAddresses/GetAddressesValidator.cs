@@ -1,6 +1,7 @@
+using Application.Addresses.Queries.GetAddresses;
 using FluentValidation;
 
-namespace Application.Addresses.Queries.GetAddresses;
+namespace Application.Features.Addresses.Queries.GetAddresses;
 
 public class GetAddressesValidator : AbstractValidator<GetAddressesQuery>
 {
