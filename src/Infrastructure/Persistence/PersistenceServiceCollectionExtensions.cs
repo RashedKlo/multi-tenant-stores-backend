@@ -34,13 +34,16 @@ public static class PersistenceServiceCollectionExtensions
     .EnableSensitiveDataLogging()
                 );
         
+           Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
 
         // Dapper factory — also map enums so raw connections can read/write them
         services.AddSingleton<IDbConnectionFactory>(_ =>
         {
+
             var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
             dataSourceBuilder.MapEnum<OrderStatus>("order_status", enumNameTranslator);
             dataSourceBuilder.MapEnum<PaymentStatus>("payment_status", enumNameTranslator);
+            // in PersistenceServiceCollectionExtensions.AddPersistence, near the top
             var dataSource = dataSourceBuilder.Build();
 
             return new NpgsqlDataSourceConnectionFactory(dataSource);

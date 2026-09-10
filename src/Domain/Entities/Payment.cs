@@ -64,29 +64,52 @@ public sealed class Payment
         return Result.Success();
     }
 
-    public Result MarkSucceeded()
-    {
-        Status = PaymentStatus.Succeeded;
-        PaidAt = DateTime.UtcNow;
-        Touch();
-        return Result.Success();
-    }
+       // Domain/Entities/Payment.cs  (key behavior methods only — keep your Create factory)
+public Result MarkSucceeded()
+{
+    if (Status == PaymentStatus.Succeeded)
+        return Result.Success(); // idempotent for webhooks
 
-    public Result MarkFailed(string? failureReason = null)
-    {
-        Status = PaymentStatus.Failed;
-        FailureReason = DomainValidation.NormalizeOptional(failureReason);
-        Touch();
-        return Result.Success();
-    }
+    if (Status is not PaymentStatus.Pending)
+        return Result.Failure(Error.Validation(
+            "Payment.Status.Invalid", $"Cannot mark {Status} payment as succeeded."));
 
-    public Result MarkRefunded()
-    {
-        Status = PaymentStatus.Refunded;
-        RefundedAt = DateTime.UtcNow;
-        Touch();
+    Status = PaymentStatus.Succeeded;
+    PaidAt = DateTime.UtcNow;
+    Touch();
+    return Result.Success();
+}
+
+public Result MarkFailed(string? failureReason = null)
+{
+    if (Status == PaymentStatus.Failed)
         return Result.Success();
-    }
+
+    if (Status is not PaymentStatus.Pending)
+        return Result.Failure(Error.Validation(
+            "Payment.Status.Invalid", $"Cannot mark {Status} payment as failed."));
+
+    Status = PaymentStatus.Failed;
+    FailureReason = string.IsNullOrWhiteSpace(failureReason) ? null : failureReason.Trim();
+    Touch();
+    return Result.Success();
+}
+
+public Result MarkRefunded()
+{
+    if (Status == PaymentStatus.Refunded)
+        return Result.Success();
+
+    if (Status is not PaymentStatus.Succeeded)
+        return Result.Failure(Error.Validation(
+            "Payment.Status.Invalid", "Only succeeded payments can be refunded."));
+
+    Status = PaymentStatus.Refunded;
+    RefundedAt = DateTime.UtcNow;
+    Touch();
+    return Result.Success();
+}
+
 
     private Result Initialize()
     {
