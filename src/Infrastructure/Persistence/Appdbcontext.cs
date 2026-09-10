@@ -1,6 +1,7 @@
 using Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
+using Domain.Aggregates.Cart;
 namespace Infrastructure.Persistence;
 
 public class AppDbContext : DbContext

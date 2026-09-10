@@ -27,6 +27,7 @@ public class FavoriteProductRepository : IFavoriteProductRepository
         var query = _context.FavoriteProducts
             .AsNoTracking()
             .Include(f => f.Product)
+            .Include(f => f.Product!.Images)
             .Where(f => f.CustomerId == customerId);
 
         var totalCount = await query.CountAsync(cancellationToken);
