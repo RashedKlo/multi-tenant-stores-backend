@@ -169,8 +169,11 @@ public sealed class CheckoutHandler(
 
         var payment = paymentResult.Value!;
 
-        // ── 8. Persist (one SaveChanges — shared scoped DbContext) ─
+        // Persist the parent order first; child records reference it and must not be
+        // inserted before the parent row exists in PostgreSQL.
         orderRepository.Add(order);
+        await orderRepository.SaveChangesAsync(cancellationToken);
+
         await orderItemRepository.AddRangeAsync(orderItems, cancellationToken);
         await orderItemOptionRepository.AddRangeAsync(orderItemOptions, cancellationToken);
         await statusHistoryRepository.AddAsync(historyResult.Value!, cancellationToken);
