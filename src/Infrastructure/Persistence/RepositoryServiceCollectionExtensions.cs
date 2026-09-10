@@ -18,9 +18,6 @@ public static class RepositoryServiceCollectionExtensions
         services.AddScoped<IFavoriteStoreRepository, FavoriteStoreRepository>();
         services.AddScoped<IFavoriteProductRepository, FavoriteProductRepository>();
         services.AddScoped<IOrderRepository, OrderRepository>();
-        services.AddScoped<IOrderItemRepository, OrderItemRepository>();
-        services.AddScoped<IOrderItemOptionRepository, OrderItemOptionRepository>();
-        services.AddScoped<IOrderStatusHistoryRepository, OrderStatusHistoryRepository>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
 
         return services;

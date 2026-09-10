@@ -58,10 +58,13 @@ namespace Infrastructure.Persistence.Configurations
                 .HasDefaultValueSql("now()")
                 .IsRequired();
 
+            builder.HasOne(h => h.Order)
+                .WithMany(o => o.StatusHistory)
+                .HasForeignKey(h => h.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             builder.HasIndex(x => new { x.OrderId, x.ChangedAt })
                 .HasDatabaseName("idx_order_status_history_order_id");
-
-            
         }
     }
 }

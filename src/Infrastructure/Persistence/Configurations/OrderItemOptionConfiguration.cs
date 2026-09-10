@@ -41,8 +41,8 @@ namespace Infrastructure.Persistence.Configurations
                 .HasDefaultValue(0m)
                 .IsRequired();
 
-            builder.HasOne<OrderItem>()
-                .WithMany()
+            builder.HasOne(o => o.OrderItem)
+                .WithMany(i => i.Options)
                 .HasForeignKey(x => x.OrderItemId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .IsRequired();

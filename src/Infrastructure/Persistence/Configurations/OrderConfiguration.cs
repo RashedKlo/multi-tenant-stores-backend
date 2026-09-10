@@ -129,7 +129,26 @@ namespace Infrastructure.Persistence.Configurations
             builder.HasIndex(x => x.Status)
                 .HasDatabaseName("idx_orders_status");
 
-          
+            builder.HasMany(o => o.Items)
+                .WithOne(i => i.Order)
+                .HasForeignKey(i => i.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Navigation(o => o.Items)
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+            builder.HasMany(o => o.StatusHistory)
+                .WithOne(h => h.Order)
+                .HasForeignKey(h => h.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Navigation(o => o.StatusHistory)
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+            builder.HasOne(o => o.Payment)
+                .WithOne(p => p.Order)
+                .HasForeignKey<Payment>(p => p.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

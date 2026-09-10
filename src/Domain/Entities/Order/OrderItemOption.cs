@@ -1,49 +1,40 @@
+// Domain/Entities/Order/OrderItemOption.cs
 using Domain.Common;
 
-namespace Domain.Entities
+namespace Domain.Entities;
+
+public sealed class OrderItemOption
 {
-    public class OrderItemOption
+    public Guid Id { get; private set; }
+    public Guid OrderItemId { get; private set; }
+    public string OptionNameEnSnapshot { get; private set; } = null!;
+    public string OptionNameArSnapshot { get; private set; } = null!;
+    public decimal PriceAdjustmentSnapshot { get; private set; }
+
+    public OrderItem OrderItem { get; private set; } = null!;
+
+    private OrderItemOption() { }
+
+    public static Result<OrderItemOption> Create(
+        Guid orderItemId,
+        string nameEn,
+        string nameAr,
+        decimal priceAdjustment = 0)
     {
-        public Guid Id { get; private set; }
+        if (orderItemId == Guid.Empty)
+            return Result<OrderItemOption>.Failure(Error.Validation(
+                "OrderItemOption.OrderItemId.Required", "OrderItemId is required."));
+        if (string.IsNullOrWhiteSpace(nameEn) || string.IsNullOrWhiteSpace(nameAr))
+            return Result<OrderItemOption>.Failure(Error.Validation(
+                "OrderItemOption.Name.Required", "Option name snapshot is required."));
 
-        public Guid OrderItemId { get; private set; }
-
-        public string OptionNameEnSnapshot { get; private set; } = null!;
-
-        public string OptionNameArSnapshot { get; private set; } = null!;
-
-        public decimal PriceAdjustmentSnapshot { get; private set; }
-
-        private OrderItemOption()
+        return Result<OrderItemOption>.Success(new OrderItemOption
         {
-        }
-
-        public static Result<OrderItemOption> Create(
-            Guid orderItemId,
-            string optionNameEnSnapshot,
-            string optionNameArSnapshot,
-            decimal priceAdjustmentSnapshot = 0)
-        {
-            var errors = new List<Error>();
-
-            DomainValidation.EnsureNotEmptyGuid(orderItemId, errors, "OrderItemId");
-
-            optionNameEnSnapshot = DomainValidation.NormalizeRequiredString(optionNameEnSnapshot, errors, "Option name EN");
-            optionNameArSnapshot = DomainValidation.NormalizeRequiredString(optionNameArSnapshot, errors, "Option name AR");
-
-            if (errors.Count > 0)
-                return Result<OrderItemOption>.Failure(errors);
-
-            var option = new OrderItemOption
-            {
-                Id = Guid.NewGuid(),
-                OrderItemId = orderItemId,
-                OptionNameEnSnapshot = optionNameEnSnapshot,
-                OptionNameArSnapshot = optionNameArSnapshot,
-                PriceAdjustmentSnapshot = priceAdjustmentSnapshot
-            };
-
-            return Result<OrderItemOption>.Success(option);
-        }
+            Id = Guid.NewGuid(),
+            OrderItemId = orderItemId,
+            OptionNameEnSnapshot = nameEn.Trim(),
+            OptionNameArSnapshot = nameAr.Trim(),
+            PriceAdjustmentSnapshot = priceAdjustment
+        });
     }
 }

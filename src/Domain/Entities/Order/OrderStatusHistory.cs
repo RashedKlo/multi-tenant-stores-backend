@@ -1,55 +1,42 @@
 using Domain.Common;
 using Domain.Enums;
 
-namespace Domain.Entities
+namespace Domain.Entities;
+
+public sealed class OrderStatusHistory
 {
-    public class OrderStatusHistory
+    public Guid Id { get; private set; }
+    public Guid OrderId { get; private set; }
+    public OrderStatus Status { get; private set; }
+    public string? Note { get; private set; }
+    public ChangedByType? ChangedByType { get; private set; }
+    public Guid? ChangedById { get; private set; }
+    public DateTime ChangedAt { get; private set; }
+
+    public Order Order { get; private set; } = null!;
+
+    private OrderStatusHistory() { }
+
+    public static Result<OrderStatusHistory> Create(
+        Guid orderId,
+        OrderStatus status,
+        string? note = null,
+        ChangedByType? changedByType = null,
+        Guid? changedById = null)
     {
-        public Guid Id { get; private set; }
+        if (orderId == Guid.Empty)
+            return Result<OrderStatusHistory>.Failure(Error.Validation(
+                "OrderStatusHistory.OrderId.Required", "OrderId is required."));
 
-        public Guid OrderId { get; private set; }
-
-        public OrderStatus Status { get; private set; }
-
-        public string? Note { get; private set; }
-
-        public ChangedByType? ChangedByType { get; private set; }
-
-        public Guid? ChangedById { get; private set; }
-
-        public DateTime ChangedAt { get; private set; }
-        private OrderStatusHistory()
+        return Result<OrderStatusHistory>.Success(new OrderStatusHistory
         {
-        }
-
-        public static Result<OrderStatusHistory> Create(
-            Guid orderId,
-            OrderStatus status,
-            string? note = null,
-            ChangedByType? changedByType = null,
-            Guid? changedById = null)
-        {
-            var errors = new List<Error>();
-
-            DomainValidation.EnsureNotEmptyGuid(orderId, errors, "OrderId");
-
-            note = DomainValidation.NormalizeOptional(note);
-
-            if (errors.Count > 0)
-                return Result<OrderStatusHistory>.Failure(errors);
-
-            var history = new OrderStatusHistory
-            {
-                Id = Guid.NewGuid(),
-                OrderId = orderId,
-                Status = status,
-                Note = note,
-                ChangedByType = changedByType,
-                ChangedById = changedById,
-                ChangedAt = DateTime.UtcNow
-            };
-
-            return Result<OrderStatusHistory>.Success(history);
-        }
+            Id = Guid.NewGuid(),
+            OrderId = orderId,
+            Status = status,
+            Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim(),
+            ChangedByType = changedByType,
+            ChangedById = changedById,
+            ChangedAt = DateTime.UtcNow
+        });
     }
 }

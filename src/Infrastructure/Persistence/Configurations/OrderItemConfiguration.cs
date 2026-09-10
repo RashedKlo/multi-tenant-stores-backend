@@ -69,11 +69,14 @@ namespace Infrastructure.Persistence.Configurations
                 .HasColumnType("numeric(18,2)")
                 .IsRequired();
 
-            builder.HasOne<Order>()
-                .WithMany()
+            builder.HasOne(i => i.Order)
+                .WithMany(o => o.Items)
                 .HasForeignKey(x => x.OrderId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .IsRequired();
+
+            builder.Navigation(i => i.Options)
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
 
             builder.HasIndex(x => x.OrderId)
                 .HasDatabaseName("idx_order_items_order_id");

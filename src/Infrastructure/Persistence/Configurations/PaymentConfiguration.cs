@@ -103,6 +103,10 @@ namespace Infrastructure.Persistence.Configurations
             builder.HasIndex(x => x.Status)
                 .HasDatabaseName("idx_payments_status");
 
+            builder.HasOne(p => p.Order)
+                .WithOne(o => o.Payment)
+                .HasForeignKey<Payment>(p => p.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
