@@ -2,30 +2,25 @@ using Application.Catalog.DTOs;
 using Application.Common.Interfaces;
 using Application.Common.Models;
 using Domain.Common;
-using Domain.Interfaces;
 using MediatR;
 
 namespace Application.Catalog.Queries.GetStoreSections;
 
-public class GetStoreSectionsHandler(IStoreSectionRepository repository,ICurrentLanguageProvider currentLanguageProvider)
+public sealed class GetStoreSectionsHandler(
+    ICatalogQueries catalogQueries,
+    ICurrentLanguageProvider currentLanguageProvider)
     : IRequestHandler<GetStoreSectionsQuery, Result<PagedResult<StoreSectionDto>>>
 {
     public async Task<Result<PagedResult<StoreSectionDto>>> Handle(
-        GetStoreSectionsQuery request, CancellationToken cancellationToken)
+        GetStoreSectionsQuery request,
+        CancellationToken cancellationToken)
     {
-        var (sections, totalCount) = await repository.GetPagedByStoreIdAsync(
+        var result = await catalogQueries.GetStoreSectionsAsync(
             request.StoreId,
             request.PageNumber,
             request.PageSize,
+            currentLanguageProvider.Language,
             cancellationToken);
-
-        var dtos = sections.Select(s => StoreSectionDto.FromEntity(s, currentLanguageProvider.Language)).ToList();    
-
-        var result = PagedResult<StoreSectionDto>.Create(
-            dtos,
-            request.PageNumber,
-            request.PageSize,
-            totalCount);
 
         return Result<PagedResult<StoreSectionDto>>.Success(result);
     }

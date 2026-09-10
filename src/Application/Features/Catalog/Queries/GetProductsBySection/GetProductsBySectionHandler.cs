@@ -2,36 +2,28 @@ using Application.Catalog.DTOs;
 using Application.Common.Interfaces;
 using Application.Common.Models;
 using Domain.Common;
-using Domain.Interfaces;
 using MediatR;
 
 namespace Application.Catalog.Queries.GetProductsBySection;
 
-public class GetProductsBySectionHandler(
-    IProductRepository productRepository,
+public sealed class GetProductsBySectionHandler(
+    ICatalogQueries catalogQueries,
     ICurrentLanguageProvider currentLanguageProvider)
     : IRequestHandler<GetProductsBySectionQuery, Result<PagedResult<ProductSummaryDto>>>
 {
     public async Task<Result<PagedResult<ProductSummaryDto>>> Handle(
-        GetProductsBySectionQuery request, CancellationToken cancellationToken)
+        GetProductsBySectionQuery request,
+        CancellationToken cancellationToken)
     {
-        var (products, totalCount) = await productRepository.GetPagedBySectionAsync(
+        var result = await catalogQueries.GetProductsBySectionAsync(
             request.SectionId,
             request.InStockOnly,
             request.MinPrice,
             request.MaxPrice,
             request.PageNumber,
             request.PageSize,
+            currentLanguageProvider.Language,
             cancellationToken);
-        var dtos = products
-            .Select(p => ProductSummaryDto.FromEntity(p, currentLanguageProvider.Language))
-            .ToList();
-
-        var result = PagedResult<ProductSummaryDto>.Create(
-            dtos,
-            request.PageNumber,
-            request.PageSize,
-            totalCount);
 
         return Result<PagedResult<ProductSummaryDto>>.Success(result);
     }

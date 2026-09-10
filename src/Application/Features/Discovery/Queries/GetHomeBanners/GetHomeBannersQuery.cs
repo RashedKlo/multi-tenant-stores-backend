@@ -4,4 +4,4 @@ using MediatR;
 
 namespace Application.Discovery.Queries.GetHomeBanners;
 
-public record GetHomeBannersQuery : IRequest<Result<List<HomeBannerDto>>>;
+public record GetHomeBannersQuery : IRequest<Result<IReadOnlyList<HomeBannerDto>>>;

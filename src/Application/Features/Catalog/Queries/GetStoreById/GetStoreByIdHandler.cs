@@ -1,30 +1,28 @@
 using Application.Catalog.DTOs;
 using Application.Common.Interfaces;
 using Domain.Common;
-using Domain.Interfaces;
 using MediatR;
 
 namespace Application.Catalog.Queries.GetStoreById;
 
-public class GetStoreByIdHandler(
-    IStoreRepository storeRepository,
-    IFavoriteStoreRepository favoriteStoreRepository,
+public sealed class GetStoreByIdHandler(
+    ICatalogQueries catalogQueries,
     ICurrentUserService currentUser,
     ICurrentLanguageProvider currentLanguageProvider)
     : IRequestHandler<GetStoreByIdQuery, Result<StoreDetailDto>>
 {
     public async Task<Result<StoreDetailDto>> Handle(
-        GetStoreByIdQuery request, CancellationToken cancellationToken)
+        GetStoreByIdQuery request,
+        CancellationToken cancellationToken)
     {
-        var store = await storeRepository.GetByIdReadOnlyAsync(request.StoreId, cancellationToken);
-        if (store is null || !store.IsActive || store.DeletedAt is not null)
-            return Result<StoreDetailDto>.Failure(Error.NotFound("Store.NotFound", "Store not found"));
+        var store = await catalogQueries.GetStoreByIdAsync(
+            request.StoreId,
+            currentUser.CustomerId,
+            currentLanguageProvider.Language,
+            cancellationToken);
 
-        var isFavorite = currentUser.IsAuthenticated
-            && await favoriteStoreRepository.ExistsAsync(
-                currentUser.CustomerId!.Value, store.Id, cancellationToken);
-
-        var dto = StoreDetailDto.FromEntity(store, isFavorite, currentLanguageProvider.Language);
-        return Result<StoreDetailDto>.Success(dto);
+        return store is null
+            ? Result<StoreDetailDto>.Failure(Error.NotFound("Store.NotFound", "Store not found."))
+            : Result<StoreDetailDto>.Success(store);
     }
 }

@@ -4,4 +4,4 @@ using MediatR;
 
 namespace Application.Discovery.Queries.GetModules;
 
-public record GetModulesQuery : IRequest<Result<List<ModuleDto>>>;
+public record GetModulesQuery : IRequest<Result<IReadOnlyList<ModuleDto>>>;

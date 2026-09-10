@@ -1,27 +1,23 @@
 using Application.Common.Interfaces;
 using Application.Discovery.DTOs;
 using Domain.Common;
-using Domain.Interfaces;
 using MediatR;
 
 namespace Application.Discovery.Queries.GetModules;
 
-public class GetModulesHandler(IModuleRepository repository, ICacheService cache, ICurrentLanguageProvider currentLanguageProvider)
-    : IRequestHandler<GetModulesQuery, Result<List<ModuleDto>>>
+public sealed class GetModulesHandler(
+    IDiscoveryQueries discoveryQueries,
+    ICurrentLanguageProvider currentLanguageProvider)
+    : IRequestHandler<GetModulesQuery, Result<IReadOnlyList<ModuleDto>>>
 {
-    private  string CacheKey = $"modules:all:{currentLanguageProvider.Language}";
-
-    public async Task<Result<List<ModuleDto>>> Handle(
-        GetModulesQuery request, CancellationToken cancellationToken)
+    public async Task<Result<IReadOnlyList<ModuleDto>>> Handle(
+        GetModulesQuery request,
+        CancellationToken cancellationToken)
     {
-        var cached = await cache.GetAsync<List<ModuleDto>>(CacheKey, cancellationToken);
-        if (cached is not null)
-            return Result<List<ModuleDto>>.Success(cached);
+        var modules = await discoveryQueries.GetModulesAsync(
+            currentLanguageProvider.Language,
+            cancellationToken);
 
-        var modules = await repository.GetActiveOrderedAsync(cancellationToken);
-        var dtos = modules.Select(m => ModuleDto.FromEntity(m, currentLanguageProvider.Language)).ToList();
-
-        await cache.SetAsync(CacheKey, dtos, TimeSpan.FromMinutes(30), cancellationToken);
-        return Result<List<ModuleDto>>.Success(dtos);
+        return Result<IReadOnlyList<ModuleDto>>.Success(modules);
     }
 }
