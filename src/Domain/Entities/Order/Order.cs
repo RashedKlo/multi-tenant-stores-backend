@@ -34,12 +34,7 @@ namespace Domain.Entities
         public DateTime CreatedAt { get; private set; }
 
         public DateTime UpdatedAt { get; private set; }
-        public ICollection<OrderItem> OrderItems { get; private set; } = new List<OrderItem>();
-        public ICollection<OrderStatusHistory> OrderStatusHistories { get; private set; } = new List<OrderStatusHistory>();
-        public Payment? Payment { get; private set; }
-        public Customer Customer { get; private set; } = null!;
-        public Store Store { get; private set; } = null!;
-        public CustomerAddress? CustomerAddress { get; private set; }
+
 
         private Order()
         {

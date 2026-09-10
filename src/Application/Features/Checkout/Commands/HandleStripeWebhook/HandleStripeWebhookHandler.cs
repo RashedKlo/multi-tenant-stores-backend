@@ -15,7 +15,6 @@ public sealed class HandleStripeWebhookHandler(
     IPaymentRepository paymentRepository,
     IOrderRepository orderRepository,
     IOrderStatusHistoryRepository statusHistoryRepository,
-    ICartRepository cartRepository,
     ILogger<HandleStripeWebhookHandler> logger)
     : IRequestHandler<HandleStripeWebhookCommand, Result>
 {
@@ -89,8 +88,8 @@ public sealed class HandleStripeWebhookHandler(
 
             try
             {
-                await cartRepository.ClearForCustomerStoreAsync(
-                    order.CustomerId, order.StoreId, ct);
+                // await cartRepository.ClearForCustomerStoreAsync(
+                //     order.CustomerId, order.StoreId, ct);
             }
             catch (Exception ex)
             {

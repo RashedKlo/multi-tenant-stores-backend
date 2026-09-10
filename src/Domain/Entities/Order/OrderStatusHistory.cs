@@ -18,7 +18,6 @@ namespace Domain.Entities
         public Guid? ChangedById { get; private set; }
 
         public DateTime ChangedAt { get; private set; }
-public Order Order { get; private set; } = null!;
         private OrderStatusHistory()
         {
         }

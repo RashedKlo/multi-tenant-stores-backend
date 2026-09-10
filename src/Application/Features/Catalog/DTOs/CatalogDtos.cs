@@ -69,9 +69,7 @@ public record ProductOptionGroupDto(
     int MaxSelection,
     List<ProductOptionDto> Options)
 {
-    public static ProductOptionGroupDto FromEntity(Domain.Entities.ProductOptionGroup g, Language lang) => new(
-        g.Id, lang.Localize(g.NameEn, g.NameAr), g.SelectionType.ToString(), g.MinSelection, g.MaxSelection,
-        g.Options.Select(o => ProductOptionDto.FromEntity(o, lang)).ToList());
+
 }
 
 // The full "precomputed JSON" shape for the product detail page — everything
@@ -88,12 +86,4 @@ public record ProductDetailDto(
     List<ProductImageDto> Images,
     List<ProductOptionGroupDto> OptionGroups)
 {
-    public static ProductDetailDto FromEntity(Domain.Entities.Product p, bool isFavorite, Language lang) => new(
-        p.Id, lang.Localize(p.NameEn, p.NameAr), lang.LocalizeNullable(p.DescriptionEn, p.DescriptionAr),
-        p.Price, p.ComparePrice,
-        InStock: !p.TrackInventory || p.StockQuantity > 0,
-        StockQuantity: p.TrackInventory ? p.StockQuantity : null,
-        isFavorite,
-        p.Images.OrderBy(i => i.DisplayOrder).Select(ProductImageDto.FromEntity).ToList(),
-        p.OptionGroups.OrderBy(g => g.DisplayOrder).Select(g => ProductOptionGroupDto.FromEntity(g, lang)).ToList());
-}
+ }

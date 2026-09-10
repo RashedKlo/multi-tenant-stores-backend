@@ -13,7 +13,6 @@ namespace Domain.Entities
         public string OptionNameArSnapshot { get; private set; } = null!;
 
         public decimal PriceAdjustmentSnapshot { get; private set; }
-        public OrderItem OrderItem { get; private set; } = null!;
 
         private OrderItemOption()
         {
