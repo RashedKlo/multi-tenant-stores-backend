@@ -19,9 +19,5 @@ public class LoginValidator : AbstractValidator<LoginCommand>
             .WithErrorCode("Password.Required")
             .WithMessage("Password is required.");
 
-        RuleFor(x => x.StoreId)
-            .Must(id => id is null || id != Guid.Empty)
-            .WithErrorCode("StoreId.Invalid")
-            .WithMessage("StoreId must be a valid GUID when provided.");
     }
 }

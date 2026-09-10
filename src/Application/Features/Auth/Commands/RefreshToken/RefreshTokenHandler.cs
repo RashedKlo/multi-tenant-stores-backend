@@ -1,67 +1,52 @@
+// Application/Auth/Commands/RefreshToken/RefreshTokenHandler.cs
 using Application.Auth.DTOs;
 using Application.Common.Interfaces;
 using Domain.Common;
-using Domain.Entities;
 using Domain.Interfaces;
 using MediatR;
 
 namespace Application.Auth.Commands.RefreshToken;
 
-public class RefreshTokenHandler(
-    ICustomerRepository customerRepository,
-    IRefreshTokenRepository refreshTokenRepository,
-    IJwtTokenService tokenService)
+public sealed class RefreshTokenHandler(
+    ICustomerRepository customers,
+    IRefreshTokenRepository refreshTokens,
+    IJwtTokenService jwt)
     : IRequestHandler<RefreshTokenCommand, Result<AuthTokensDto>>
 {
-    private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(30);
-
-    public async Task<Result<AuthTokensDto>> Handle(
-        RefreshTokenCommand request, CancellationToken cancellationToken)
+    public async Task<Result<AuthTokensDto>> Handle(RefreshTokenCommand request, CancellationToken ct)
     {
-        var hash = tokenService.HashToken(request.RefreshToken);
-        var existingToken = await refreshTokenRepository.GetByTokenHashAsync(hash, cancellationToken);
+        var hash = jwt.HashToken(request.RefreshToken);
+        var existing = await refreshTokens.GetByHashAsync(hash, ct);
 
-        // Unknown or expired → plain rejection.
-        if (existingToken is null || existingToken.IsExpired)
-            return Invalid();
-        if (existingToken.IsRevoked)
-        {
-            var survivors = await refreshTokenRepository.GetActiveByCustomerIdAsync(
-                existingToken.CustomerId, cancellationToken);
-            foreach (var t in survivors)
-                t.Revoke();
-            await refreshTokenRepository.SaveChangesAsync(cancellationToken);
-            return Invalid();
-        }
+        if (existing is null || !existing.IsActive)
+            return Result<AuthTokensDto>.Failure(
+                Error.Unauthorized("Auth.RefreshToken.Invalid", "Invalid or expired refresh token."));
 
-        var customer = await customerRepository.GetByIdAsync(existingToken.CustomerId, cancellationToken);
-        if (customer is null || !customer.IsActive || customer.IsDeleted) // adjust if props differ
-            return Invalid();
+        var customer = await customers.GetByIdAsync(existing.CustomerId, ct);
+        if (customer is null || customer.IsDeleted || !customer.IsActive)
+            return Result<AuthTokensDto>.Failure(
+                Error.Unauthorized("Auth.RefreshToken.Invalid", "Invalid or expired refresh token."));
 
-        // Rotation: consume old, issue new.
-        existingToken.Revoke();
-        existingToken.MarkUsed();   // LastUsedAt snapshot pre-revocation
+        // Rotate: revoke old, issue new
+        existing.Revoke();
 
-        var pair = tokenService.GenerateTokenPair(customer.Id, customer.Email);
+        var pair = jwt.GenerateTokenPair(customer.Id, customer.Email);
+        var newHash = jwt.HashToken(pair.RefreshToken);
 
-        var newToken = Domain.Entities.RefreshToken.Create(
+        var createResult = Domain.Entities.RefreshToken.Create(
             customer.Id,
-            tokenService.HashToken(pair.RefreshToken),
-            DateTime.UtcNow.Add(RefreshTokenLifetime));
+            newHash,
+            DateTime.UtcNow.AddDays(30));
 
-        if (newToken.IsFailure)
-            return Result<AuthTokensDto>.Failure(newToken.Errors);
+        if (createResult.IsFailure)
+            return Result<AuthTokensDto>.Failure(createResult.Errors);
 
-        refreshTokenRepository.Add(newToken.Value!);
+        await refreshTokens.AddAsync(createResult.Value!, ct);
+        await refreshTokens.SaveChangesAsync(ct);
 
-        // Single atomic save: revocation + rotation together.
-        await refreshTokenRepository.SaveChangesAsync(cancellationToken);
-
-        return Result<AuthTokensDto>.Success(
-            new AuthTokensDto(pair.AccessToken, pair.RefreshToken, pair.AccessTokenExpiresAt));
+        return Result<AuthTokensDto>.Success(new AuthTokensDto(
+            pair.AccessToken,
+            pair.RefreshToken,
+            pair.AccessTokenExpiresAt));
     }
-
-    private static Result<AuthTokensDto> Invalid() =>
-        Result<AuthTokensDto>.Failure(
-            Error.Forbidden("RefreshToken", "Invalid or expired refresh token."));
 }

@@ -1,96 +1,74 @@
+// Application/Auth/Commands/GoogleLogin/GoogleLoginHandler.cs
+using Application.Auth.Commands.VerifyEmail;
 using Application.Auth.DTOs;
 using Application.Common.Interfaces;
 using Domain.Common;
 using Domain.Entities;
 using Domain.Interfaces;
 using MediatR;
-using Microsoft.Extensions.Logging; // or your logging abstraction
 
 namespace Application.Auth.Commands.GoogleLogin;
 
-public class GoogleLoginHandler(
-    ICustomerRepository customerRepository,
-    IRefreshTokenRepository refreshTokenRepository,
+public sealed class GoogleLoginHandler(
+    ICustomerRepository customers,
+    IRefreshTokenRepository refreshTokens,
     IGoogleTokenVerifier googleVerifier,
-    IJwtTokenService tokenService,
-    ILogger<GoogleLoginHandler> logger)
+    IJwtTokenService jwt)
     : IRequestHandler<GoogleLoginCommand, Result<AuthTokensDto>>
 {
-    private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(30);
-
-    public async Task<Result<AuthTokensDto>> Handle(
-        GoogleLoginCommand request, CancellationToken cancellationToken)
+    public async Task<Result<AuthTokensDto>> Handle(GoogleLoginCommand request, CancellationToken ct)
     {
-        // Verifier throws on invalid/expired/wrong-audience tokens —
-        // translate that to an auth failure, not a 500.
         GoogleUserInfo googleUser;
         try
         {
-            googleUser = await googleVerifier.VerifyAsync(request.IdToken, cancellationToken);
+            googleUser = await googleVerifier.VerifyAsync(request.IdToken, ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch
         {
-            logger.LogWarning(ex, "Google token verification failed");
             return Result<AuthTokensDto>.Failure(
-                Error.Unauthorized("Google", "Invalid Google identity token."));
+                Error.Unauthorized("Auth.Google.InvalidToken", "Invalid Google token."));
         }
 
         var email = googleUser.Email.Trim().ToLowerInvariant();
-
-        var customer = await customerRepository.GetByGoogleIdAsync(googleUser.GoogleId, cancellationToken);
+        var customer = await customers.GetByEmailAsync(email, ct);
 
         if (customer is null)
         {
-            // Link by email ONLY for verified password accounts — otherwise
-            // an attacker controlling an unverified address could take over the account.
-            customer = await customerRepository.GetByEmailAsync(email, cancellationToken);
+            var createResult = Customer.CreateWithGoogle(
+                googleUser.FirstName,
+                googleUser.LastName,
+                email,
+                googleUser.GoogleId);
 
-            if (customer is not null)
+            if (createResult.IsFailure)
+                return Result<AuthTokensDto>.Failure(createResult.Errors);
+
+            customer = createResult.Value!;
+            await customers.AddAsync(customer, ct);
+            await customers.SaveChangesAsync(ct);
+        }
+        else
+        {
+            if (customer.IsDeleted || !customer.IsActive)
+                return Result<AuthTokensDto>.Failure(
+                    Error.Forbidden("Auth.Customer.Inactive", "Account is inactive."));
+
+            // Link Google if not yet linked
+            if (customer.GoogleId is null)
             {
-                if (!customer.IsEmailVerified || !customer.IsActive)
-                    return Result<AuthTokensDto>.Failure(
-                        Error.Forbidden("Google.LinkFailed",
-                            "This email is registered but cannot be linked via Google."));
+                var link = customer.LinkGoogleAccount(googleUser.GoogleId);
+                if (link.IsFailure)
+                    return Result<AuthTokensDto>.Failure(link.Errors);
 
-                customer.LinkGoogleAccount(googleUser.GoogleId);
+                await customers.SaveChangesAsync(ct);
             }
-            else
+            else if (customer.GoogleId != googleUser.GoogleId)
             {
-                var created = Customer.Create(
-                    googleUser.FirstName.Trim(),
-                    googleUser.LastName.Trim(),
-                    email,
-                    null,               // no password
-                    googleUser.GoogleId,true);
-
-                if (created.IsFailure)
-                    return Result<AuthTokensDto>.Failure(created.Errors);
-
-                customer = created.Value!;
-                customerRepository.Add(customer);
+                return Result<AuthTokensDto>.Failure(
+                    Error.Conflict("Auth.Google.Mismatch", "This email is linked to a different Google account."));
             }
         }
 
-        if (!customer.IsActive || customer.IsDeleted)
-            return Result<AuthTokensDto>.Failure(
-                Error.Forbidden("Account.Inactive", "This account is inactive."));
-
-        var pair = tokenService.GenerateTokenPair(customer.Id, customer.Email);
-
-        var refreshToken = Domain.Entities.RefreshToken.Create(
-            customer.Id,
-            tokenService.HashToken(pair.RefreshToken),
-            DateTime.UtcNow.Add(RefreshTokenLifetime));
-
-        if (refreshToken.IsFailure)
-            return Result<AuthTokensDto>.Failure(refreshToken.Errors);
-
-        refreshTokenRepository.Add(refreshToken.Value!);
-
-        // One save covers: link-or-create + new refresh token.
-        await customerRepository.SaveChangesAsync(cancellationToken);
-
-        return Result<AuthTokensDto>.Success(
-            new AuthTokensDto(pair.AccessToken, pair.RefreshToken, pair.AccessTokenExpiresAt));
+        return await VerifyEmailHandler.IssueTokensAsync(customer, refreshTokens, jwt, ct);
     }
 }

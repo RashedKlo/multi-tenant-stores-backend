@@ -1,66 +1,42 @@
+// Application/Auth/Commands/Login/LoginHandler.cs
+using Application.Auth.Commands.VerifyEmail;
 using Application.Auth.DTOs;
 using Application.Common.Interfaces;
 using Domain.Common;
-using Domain.Entities;
 using Domain.Interfaces;
 using MediatR;
 
 namespace Application.Auth.Commands.Login;
 
-public class LoginHandler(
-    ICustomerRepository customerRepository,
-    IRefreshTokenRepository refreshTokenRepository,
+public sealed class LoginHandler(
+    ICustomerRepository customers,
+    IRefreshTokenRepository refreshTokens,
     IPasswordHasher passwordHasher,
-    IJwtTokenService tokenService)
+    IJwtTokenService jwt)
     : IRequestHandler<LoginCommand, Result<AuthTokensDto>>
 {
-    private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(30);
-
-    public async Task<Result<AuthTokensDto>> Handle(
-        LoginCommand request, CancellationToken cancellationToken)
+    public async Task<Result<AuthTokensDto>> Handle(LoginCommand request, CancellationToken ct)
     {
         var email = request.Email.Trim().ToLowerInvariant();
+        var customer = await customers.GetByEmailAsync(email, ct);
 
-        var customer = await customerRepository.GetByEmailAsync(email, cancellationToken);
-
-        var validCredentials =
-            customer is not null
-            && customer.PasswordHash is not null
-            && passwordHasher.Verify(request.Password, customer.PasswordHash);
-
-        if (!validCredentials)
-        {
-
+        // Generic error — do not reveal which field is wrong
+        if (customer is null || customer.IsDeleted || customer.PasswordHash is null)
             return Result<AuthTokensDto>.Failure(
-                Error.Unauthorized("Credentials", "Invalid email or password."));
-        }
+                Error.Unauthorized("Auth.InvalidCredentials", "Invalid email or password."));
 
-        if (!customer!.IsEmailVerified)
+        if (!passwordHasher.Verify(request.Password, customer.PasswordHash))
             return Result<AuthTokensDto>.Failure(
-                Error.Forbidden("Email.NotVerified", "Please verify your email before logging in."));
+                Error.Unauthorized("Auth.InvalidCredentials", "Invalid email or password."));
 
-        if (!customer.IsActive || customer.IsDeleted) // adjust if these props differ
+        if (!customer.IsActive)
             return Result<AuthTokensDto>.Failure(
-                Error.Forbidden("Account.Inactive", "This account is inactive."));
+                Error.Forbidden("Auth.Customer.Inactive", "Account is inactive."));
 
-        var pair = tokenService.GenerateTokenPair(customer.Id, customer.Email);
+        if (!customer.IsEmailVerified)
+            return Result<AuthTokensDto>.Failure(
+                Error.Forbidden("Auth.Email.NotVerified", "Please verify your email before logging in."));
 
-        var refreshToken = Domain.Entities.RefreshToken.Create(
-            customer.Id,
-            tokenService.HashToken(pair.RefreshToken),
-            DateTime.UtcNow.Add(RefreshTokenLifetime));
-
-        if (refreshToken.IsFailure)
-            return Result<AuthTokensDto>.Failure(refreshToken.Errors);
-
-        refreshTokenRepository.Add(refreshToken.Value!);
-        await refreshTokenRepository.SaveChangesAsync(cancellationToken);
-
-        // TODO: guest→auth cart handoff when GuestSessionToken is provided:
-        //   resolve guest session by hash → move/merge its cart items into the
-        //   customer's active cart → revoke the guest session. Single transaction.
-
-        return Result<AuthTokensDto>.Success(
-            new AuthTokensDto(pair.AccessToken, pair.RefreshToken, pair.AccessTokenExpiresAt));
+        return await VerifyEmailHandler.IssueTokensAsync(customer, refreshTokens, jwt, ct);
     }
 }

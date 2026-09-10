@@ -1,6 +1,7 @@
+// Application/Auth/Commands/Logout/LogoutCommand.cs
 using Domain.Common;
 using MediatR;
 
 namespace Application.Auth.Commands.Logout;
 
-public record LogoutCommand(string RefreshToken) : IRequest<Result>;
+public sealed record LogoutCommand(string RefreshToken) : IRequest<Result>;

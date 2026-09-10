@@ -1,3 +1,4 @@
+// Application/Auth/Commands/VerifyEmail/VerifyEmailHandler.cs
 using Application.Auth.DTOs;
 using Application.Common.Interfaces;
 using Domain.Common;
@@ -7,49 +8,63 @@ using MediatR;
 
 namespace Application.Auth.Commands.VerifyEmail;
 
-public class VerifyEmailHandler(
-    ICustomerRepository customerRepository,
-    IRefreshTokenRepository refreshTokenRepository,
+public sealed class VerifyEmailHandler(
+    ICustomerRepository customers,
+    IRefreshTokenRepository refreshTokens,
     IVerificationCodeStore codeStore,
-    IJwtTokenService tokenService)
+    IJwtTokenService jwt)
     : IRequestHandler<VerifyEmailCommand, Result<AuthTokensDto>>
 {
-    private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(30);
-
-    public async Task<Result<AuthTokensDto>> Handle(
-        VerifyEmailCommand request, CancellationToken cancellationToken)
+    public async Task<Result<AuthTokensDto>> Handle(VerifyEmailCommand request, CancellationToken ct)
     {
         var email = request.Email.Trim().ToLowerInvariant();
 
-        var customer = await customerRepository.GetByEmailAsync(email, cancellationToken);
-
-        // Single generic failure for "no account" or "wrong code" — no enumeration.
-        if (customer is null || !await codeStore.ValidateAndConsumeAsync(email, request.Code, cancellationToken))
+        var isValid = await codeStore.ValidateAndConsumeAsync(email, request.Code, ct);
+        if (!isValid)
             return Result<AuthTokensDto>.Failure(
-                Error.Validation("Verification.Failed", "Invalid or expired verification code."));
+                Error.Validation("Auth.Code.Invalid", "Invalid or expired verification code."));
 
-        if (customer.IsEmailVerified)
+        var customer = await customers.GetByEmailAsync(email, ct);
+        if (customer is null || customer.IsDeleted)
             return Result<AuthTokensDto>.Failure(
-                Error.Conflict("Email.AlreadyVerified", "This email is already verified."));
+                Error.NotFound("Auth.Customer.NotFound", "Customer not found."));
 
-        customer.VerifyEmail();
+        if (!customer.IsActive)
+            return Result<AuthTokensDto>.Failure(
+                Error.Forbidden("Auth.Customer.Inactive", "Account is inactive."));
 
-        var pair = tokenService.GenerateTokenPair(customer.Id, customer.Email);
+        var verifyResult = customer.VerifyEmail();
+        if (verifyResult.IsFailure)
+            return Result<AuthTokensDto>.Failure(verifyResult.Errors);
 
-        var refreshToken = Domain.Entities.RefreshToken.Create(
+        await customers.SaveChangesAsync(ct);
+
+        return await IssueTokensAsync(customer, refreshTokens, jwt, ct);
+    }
+
+    internal static async Task<Result<AuthTokensDto>> IssueTokensAsync(
+        Customer customer,
+        IRefreshTokenRepository refreshTokens,
+        IJwtTokenService jwt,
+        CancellationToken ct)
+    {
+        var pair = jwt.GenerateTokenPair(customer.Id, customer.Email);
+        var hash = jwt.HashToken(pair.RefreshToken);
+
+        var tokenResult = Domain.Entities.RefreshToken.Create(
             customer.Id,
-            tokenService.HashToken(pair.RefreshToken),
-            DateTime.UtcNow.Add(RefreshTokenLifetime));
+            hash,
+            DateTime.UtcNow.AddDays(30));
 
-        if (refreshToken.IsFailure)
-            return Result<AuthTokensDto>.Failure(refreshToken.Errors);
+        if (tokenResult.IsFailure)
+            return Result<AuthTokensDto>.Failure(tokenResult.Errors);
 
-         refreshTokenRepository.Add(refreshToken.Value!);
+        await refreshTokens.AddAsync(tokenResult.Value!, ct);
+        await refreshTokens.SaveChangesAsync(ct);
 
-        // One unit of work: verification + token persisted together.
-        await customerRepository.SaveChangesAsync(cancellationToken);
-
-        return Result<AuthTokensDto>.Success(
-            new AuthTokensDto(pair.AccessToken, pair.RefreshToken, pair.AccessTokenExpiresAt));
+        return Result<AuthTokensDto>.Success(new AuthTokensDto(
+            pair.AccessToken,
+            pair.RefreshToken,
+            pair.AccessTokenExpiresAt));
     }
 }

@@ -1,3 +1,4 @@
+// Application/Auth/Commands/ResetPassword/ResetPasswordHandler.cs
 using Application.Common.Interfaces;
 using Domain.Common;
 using Domain.Interfaces;
@@ -5,37 +6,31 @@ using MediatR;
 
 namespace Application.Auth.Commands.ResetPassword;
 
-public class ResetPasswordHandler(
-    ICustomerRepository customerRepository,
-    IRefreshTokenRepository refreshTokenRepository,
+public sealed class ResetPasswordHandler(
+    ICustomerRepository customers,
     IVerificationCodeStore codeStore,
     IPasswordHasher passwordHasher)
     : IRequestHandler<ResetPasswordCommand, Result>
 {
-    public async Task<Result> Handle(
-        ResetPasswordCommand request, CancellationToken cancellationToken)
+    public async Task<Result> Handle(ResetPasswordCommand request, CancellationToken ct)
     {
         var email = request.Email.Trim().ToLowerInvariant();
 
-        var customer = await customerRepository.GetByEmailAsync(email, cancellationToken);
-
-        // Generic failure covers both "no such account" and "bad code" — no enumeration,
-        // and the code isn't burned for nonexistent emails.
-        if (customer is null || !await codeStore.ValidateAndConsumeAsync(email, request.Code, cancellationToken))
+        var isValid = await codeStore.ValidateAndConsumeAsync(email, request.Code, ct);
+        if (!isValid)
             return Result.Failure(
-                Error.Validation("PasswordReset.Failed", "Invalid or expired reset code."));
+                Error.Validation("Auth.Code.Invalid", "Invalid or expired reset code."));
 
-        // Explicit domain operation instead of round-tripping every field through Update().
-        customer.SetPassword(passwordHasher.Hash(request.NewPassword));
+        var customer = await customers.GetByEmailAsync(email, ct);
+        if (customer is null || customer.IsDeleted)
+            return Result.Failure(Error.NotFound("Auth.Customer.NotFound", "Customer not found."));
 
-        // Password reset kills every live session — atomic with the save below.
-        var activeTokens = await refreshTokenRepository.GetActiveByCustomerIdAsync(
-            customer.Id, cancellationToken);
+        var newHash = passwordHasher.Hash(request.NewPassword);
+        var result = customer.ChangePassword(newHash);
+        if (result.IsFailure)
+            return result;
 
-        foreach (var token in activeTokens)
-            token.Revoke();
-        await customerRepository.SaveChangesAsync(cancellationToken);
-
+        await customers.SaveChangesAsync(ct);
         return Result.Success();
     }
 }

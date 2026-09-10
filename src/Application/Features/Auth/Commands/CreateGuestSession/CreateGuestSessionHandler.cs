@@ -1,3 +1,4 @@
+// Application/Auth/Commands/CreateGuestSession/CreateGuestSessionHandler.cs
 using Application.Auth.DTOs;
 using Application.Common.Interfaces;
 using Domain.Common;
@@ -7,30 +8,26 @@ using MediatR;
 
 namespace Application.Auth.Commands.CreateGuestSession;
 
-public class CreateGuestSessionHandler(
-    IGuestSessionRepository repository,
-    IJwtTokenService tokenService)
+public sealed class CreateGuestSessionHandler(
+    IGuestSessionRepository guestSessions,
+    IJwtTokenService jwt)
     : IRequestHandler<CreateGuestSessionCommand, Result<GuestSessionDto>>
 {
-    private static readonly TimeSpan SessionLifetime = TimeSpan.FromDays(30);
-
     public async Task<Result<GuestSessionDto>> Handle(
-        CreateGuestSessionCommand request, CancellationToken cancellationToken)
+        CreateGuestSessionCommand request, CancellationToken ct)
     {
-        // Raw token goes to the browser exactly once; only its hash is persisted.
-        var rawToken = tokenService.GenerateOpaqueToken();
+        var rawToken = jwt.GenerateOpaqueToken();
+        var hash = jwt.HashToken(rawToken);
+        var expiresAt = DateTime.UtcNow.AddDays(30);
 
-        var session = GuestSession.Create(
-            tokenService.HashToken(rawToken),
-            DateTime.UtcNow.Add(SessionLifetime)); // adjust if Create takes a TimeSpan
+        var createResult = GuestSession.Create(hash, expiresAt);
+        if (createResult.IsFailure)
+            return Result<GuestSessionDto>.Failure(createResult.Errors);
 
-        if (session.IsFailure)
-            return Result<GuestSessionDto>.Failure(session.Errors);
-
-        repository.Add(session.Value!);
-        await repository.SaveChangesAsync(cancellationToken);
+        await guestSessions.AddAsync(createResult.Value!, ct);
+        await guestSessions.SaveChangesAsync(ct);
 
         return Result<GuestSessionDto>.Success(
-            new GuestSessionDto(rawToken, session.Value!.ExpiresAt));
+            new GuestSessionDto(rawToken, expiresAt));
     }
 }

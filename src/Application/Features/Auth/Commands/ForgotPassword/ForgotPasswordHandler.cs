@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+// Application/Auth/Commands/ForgotPassword/ForgotPasswordHandler.cs
 using Application.Common.Interfaces;
 using Domain.Common;
 using Domain.Interfaces;
@@ -6,32 +6,24 @@ using MediatR;
 
 namespace Application.Auth.Commands.ForgotPassword;
 
-public class ForgotPasswordHandler(
-    ICustomerRepository customerRepository,
+public sealed class ForgotPasswordHandler(
+    ICustomerRepository customers,
     IVerificationCodeStore codeStore,
     IEmailService emailService)
     : IRequestHandler<ForgotPasswordCommand, Result>
 {
-    private static readonly TimeSpan CodeTtl = TimeSpan.FromMinutes(10);
-
-    public async Task<Result> Handle(
-        ForgotPasswordCommand request, CancellationToken cancellationToken)
+    public async Task<Result> Handle(ForgotPasswordCommand request, CancellationToken ct)
     {
         var email = request.Email.Trim().ToLowerInvariant();
+        var customer = await customers.GetByEmailAsync(email, ct);
 
-        var customer = await customerRepository.GetByEmailAsync(email, cancellationToken);
-
-        // Silent success for BOTH cases — never reveal:
-        //   1. whether the email has an account,
-        //   2. whether it's a Google-only account without a local password.
-        // An attacker probing emails gets an identical response either way.
-        if (customer is null || customer.PasswordHash is null)
+        // Always succeed — do not leak account existence
+        if (customer is null || customer.IsDeleted || !customer.IsActive)
             return Result.Success();
 
-        var code = RandomNumberGenerator.GetInt32(100_000, 1_000_000).ToString();
-
-        await codeStore.StoreCodeAsync( email, code, CodeTtl, cancellationToken);
-        await emailService.SendPasswordResetCodeAsync(email, code, cancellationToken);
+        var code = Random.Shared.Next(100000, 999999).ToString();
+        await codeStore.StoreCodeAsync(email, code, TimeSpan.FromMinutes(15), ct);
+        await emailService.SendPasswordResetCodeAsync(email, code, ct);
 
         return Result.Success();
     }

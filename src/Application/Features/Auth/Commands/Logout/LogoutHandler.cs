@@ -1,3 +1,4 @@
+// Application/Auth/Commands/Logout/LogoutHandler.cs
 using Application.Common.Interfaces;
 using Domain.Common;
 using Domain.Interfaces;
@@ -5,24 +6,22 @@ using MediatR;
 
 namespace Application.Auth.Commands.Logout;
 
-public class LogoutHandler(
-    IRefreshTokenRepository refreshTokenRepository,
-    IJwtTokenService tokenService)
+public sealed class LogoutHandler(
+    IRefreshTokenRepository refreshTokens,
+    IJwtTokenService jwt)
     : IRequestHandler<LogoutCommand, Result>
 {
-    public async Task<Result> Handle(
-        LogoutCommand request, CancellationToken cancellationToken)
+    public async Task<Result> Handle(LogoutCommand request, CancellationToken ct)
     {
-        var hash = tokenService.HashToken(request.RefreshToken);
-        var token = await refreshTokenRepository.GetByTokenHashAsync(hash, cancellationToken);
+        var hash = jwt.HashToken(request.RefreshToken);
+        var token = await refreshTokens.GetByHashAsync(hash, ct);
 
-        if (token is null || token.RevokedAt is not null)
-            return Result.Success(); // idempotent — already logged out
+        // Idempotent — already logged out is success
+        if (token is null || token.IsRevoked)
+            return Result.Success();
 
         token.Revoke();
-        refreshTokenRepository.Update(token);
-        await refreshTokenRepository.SaveChangesAsync(cancellationToken);
-
+        await refreshTokens.SaveChangesAsync(ct);
         return Result.Success();
     }
 }
