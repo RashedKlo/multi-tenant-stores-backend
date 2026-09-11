@@ -45,7 +45,8 @@ public sealed class AddCartItemHandler : IRequestHandler<AddCartItemCommand, Res
                 :null;
         
         if (cart is not null)
-            return Result<Domain.Aggregates.Cart.Cart>.Success(cart);
+        return Result<Domain.Aggregates.Cart.Cart>.Success(cart); 
+      
         var created = Domain.Aggregates.Cart.Cart.Create(StoreId, _user.CustomerId, _user.GuestSessionId);
        
         if (created.IsFailure)

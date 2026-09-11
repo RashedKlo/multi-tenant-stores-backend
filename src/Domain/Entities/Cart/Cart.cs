@@ -88,12 +88,12 @@ public sealed class Cart
 
         if (existing is not null)
         {
+            Console.WriteLine($"Existing item found for product {productId}, increasing quantity by {quantity}.");
             var increase = existing.IncreaseQuantity(quantity);
             if (increase.IsFailure) return increase;
             Touch();
             return Result.Success();
         }
-
         var itemResult = CartItem.Create(Id, productId, quantity, notes, optionIds);
         if (itemResult.IsFailure)
             return Result.Failure(itemResult.Errors);

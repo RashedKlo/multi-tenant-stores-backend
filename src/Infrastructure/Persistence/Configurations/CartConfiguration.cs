@@ -15,7 +15,7 @@ public class CartConfiguration : IEntityTypeConfiguration<Cart>
 
          builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.Id).HasColumnName("id").HasColumnType("uuid")            .HasDefaultValueSql("gen_random_uuid()").IsRequired();
+        builder.Property(x => x.Id).HasColumnName("id").HasColumnType("uuid").ValueGeneratedNever();
 
         builder.Property(x => x.CustomerId).HasColumnName("customer_id").HasColumnType("uuid");
         builder.Property(x => x.GuestSessionId).HasColumnName("guest_session_id").HasColumnType("uuid");
@@ -32,6 +32,13 @@ public class CartConfiguration : IEntityTypeConfiguration<Cart>
         builder.HasIndex(x => new { x.GuestSessionId, x.StoreId })
             .IsUnique().HasFilter("guest_session_id IS NOT NULL")
             .HasDatabaseName("uq_carts_guest_store");
+builder.HasMany(c => c.Items)
+    .WithOne()
+    .HasForeignKey(i => i.CartId)
+    .OnDelete(DeleteBehavior.Cascade);
 
+builder.Navigation(c => c.Items)
+    .HasField("_items")
+    .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }
