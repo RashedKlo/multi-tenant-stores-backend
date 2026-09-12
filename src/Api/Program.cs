@@ -2,6 +2,7 @@ using System.Threading.RateLimiting;
 using Api.Hubs;
 using Application;
 using Application.Common.Behaviors;
+using Application.Common.Interfaces;
 using Infrastructure;
 using Infrastructure.Middleware;
 using MediatR;
@@ -21,6 +22,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IUserIdProvider, OrderTrackingUserIdProvider>();
+
+builder.Services.AddScoped<IOrderTrackingNotifier, OrderTrackingNotifier>();
+builder.Services.AddScoped<ISupportChatNotifier, SupportChatNotifier>();
 
 // CORS — allow Angular dev server
 builder.Services.AddCors(options =>
