@@ -11,6 +11,7 @@ public static class QueryServiceCollectionExtensions
         services.AddScoped<ICartQueries, CartQueries>();
         services.AddScoped<ICatalogQueries, CatalogQueries>();
         services.AddScoped<IDiscoveryQueries, DiscoveryQueries>();
+        services.AddScoped<ISupportChatQueries, SupportChatQueries>();
         return services;
     }
 }

@@ -575,5 +575,47 @@ CREATE INDEX idx_payments_order_id ON payments(order_id);
 CREATE INDEX idx_payments_status ON payments(status);
 
 -- ============================================================
+-- SUPPORT CHAT
+-- Matches SupportConversationConfiguration + SupportMessageConfiguration
+-- ============================================================
+
+-- Enums (already exist in your schema file – skip if already created)
+-- CREATE TYPE support_conversation_status AS ENUM ('Open', 'Closed');
+-- CREATE TYPE support_sender_type AS ENUM ('Customer', 'System');
+
+CREATE TABLE support_conversations (
+    id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id        uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    customer_id      uuid NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    status           support_conversation_status NOT NULL DEFAULT 'Open',
+    created_at       timestamptz NOT NULL DEFAULT now(),
+    last_message_at  timestamptz NOT NULL DEFAULT now(),
+    deleted_at       timestamptz
+);
+
+CREATE INDEX idx_support_conversations_tenant_customer
+    ON support_conversations (tenant_id, customer_id);
+
+CREATE INDEX idx_support_conversations_customer_deleted
+    ON support_conversations (customer_id, deleted_at);
+
+
+CREATE TABLE support_messages (
+    id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_id  uuid NOT NULL REFERENCES support_conversations(id) ON DELETE CASCADE,
+    sender_type      support_sender_type NOT NULL,
+    sender_id        uuid NOT NULL,
+    body             text NOT NULL,
+    is_read          boolean NOT NULL DEFAULT false,
+    created_at       timestamptz NOT NULL DEFAULT now(),
+    deleted_at       timestamptz,
+
+    CONSTRAINT ck_support_messages_body_not_empty CHECK (length(btrim(body)) > 0)
+);
+
+CREATE INDEX idx_support_messages_conversation_created
+    ON support_messages (conversation_id, created_at);
+
+-- ============================================================
 -- DONE
 -- ============================================================
