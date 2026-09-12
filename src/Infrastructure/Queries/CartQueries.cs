@@ -9,7 +9,11 @@ namespace Infrastructure.Queries;
 public class CartQueries : ICartQueries
 {
     private readonly IDbConnectionFactory _connectionFactory;
-    private static readonly JsonSerializerOptions JsonOptions = new();
+   private static readonly JsonSerializerOptions JsonOptions = new()
+{
+    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+    PropertyNameCaseInsensitive = true 
+};
 
     public CartQueries(IDbConnectionFactory connectionFactory)
         => _connectionFactory = connectionFactory;
