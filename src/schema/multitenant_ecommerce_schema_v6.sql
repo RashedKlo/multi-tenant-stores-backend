@@ -30,7 +30,8 @@ CREATE TYPE order_status    AS ENUM (
     'Pending', 'Confirmed', 'Preparing', 'OutForDelivery', 'Delivered', 'Cancelled'
 );
 CREATE TYPE payment_status  AS ENUM ('Pending', 'Succeeded', 'Failed', 'Refunded');
-
+CREATE TYPE support_conversation_status AS ENUM ('Open', 'Closed');
+CREATE TYPE support_sender_type AS ENUM ('Customer', 'System');
 -- ============================================================
 -- HELPERS
 -- ============================================================

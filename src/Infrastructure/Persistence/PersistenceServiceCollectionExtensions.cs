@@ -28,6 +28,8 @@ public static class PersistenceServiceCollectionExtensions
                 {
                     npgsql.MapEnum<OrderStatus>("order_status", nameTranslator: enumNameTranslator);
                     npgsql.MapEnum<PaymentStatus>("payment_status", nameTranslator: enumNameTranslator);
+                    npgsql.MapEnum<SupportConversationStatus>("support_conversation_status", nameTranslator: enumNameTranslator);
+                    npgsql.MapEnum<SupportSenderType>("support_sender_type", nameTranslator: enumNameTranslator);
                 })
                 .UseSnakeCaseNamingConvention()
                 .EnableDetailedErrors()

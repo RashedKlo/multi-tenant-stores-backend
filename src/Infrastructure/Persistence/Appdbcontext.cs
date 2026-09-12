@@ -37,8 +37,10 @@ public DbSet<CartItemOption> CartItemOptions => Set<CartItemOption>();
     public DbSet<FavoriteStore> FavoriteStores => Set<FavoriteStore>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
-public DbSet<CustomerAddress> CustomerAddresses => Set<CustomerAddress>();
-public DbSet<GuestSession> GuestSessions => Set<GuestSession>();
+    public DbSet<SupportConversation> SupportConversations => Set<SupportConversation>();
+   public DbSet<SupportMessage> SupportMessages => Set<SupportMessage>();
+   public DbSet<CustomerAddress> CustomerAddresses => Set<CustomerAddress>();
+   public DbSet<GuestSession> GuestSessions => Set<GuestSession>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
