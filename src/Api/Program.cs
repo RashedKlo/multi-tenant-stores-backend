@@ -101,6 +101,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<GuestSessionMiddleware>();
 app.UseMiddleware<LanguageMiddleware>();
+app.MapHub<OrderTrackingHub>("/hubs/order-tracking"); // currently missing too — add both
+app.MapHub<SupportChatHub>("/hubs/support-chat");
 app.MapControllers();
 
 
