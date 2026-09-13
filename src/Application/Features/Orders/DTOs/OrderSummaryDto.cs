@@ -1,3 +1,4 @@
+using Application.Common.Interfaces;
 using Domain.Entities;
 using Domain.Enums;
 
@@ -12,7 +13,7 @@ public sealed record OrderSummaryDto(
     decimal Total,
     DateTime CreatedAt)
 {
-    public static OrderSummaryDto FromEntity(Order order) => new(
+    public static OrderSummaryDto FromEntity(Order order, Language language) => new(
         order.Id,
         order.StoreId,
         order.Status,

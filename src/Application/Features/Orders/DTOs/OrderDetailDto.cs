@@ -1,3 +1,4 @@
+using Application.Common.Interfaces;
 using Domain.Entities;
 using Domain.Enums;
 
@@ -21,7 +22,7 @@ public sealed record OrderDetailDto(
     IReadOnlyList<OrderStatusHistoryDto> StatusHistory,
     PaymentSummaryDto? Payment)
 {
-    public static OrderDetailDto FromEntity(Order order) => new(
+    public static OrderDetailDto FromEntity(Order order, Language lang) => new(
         order.Id,
         order.StoreId,
         order.Status,
@@ -35,7 +36,7 @@ public sealed record OrderDetailDto(
         order.DeliveryLongitude,
         order.CreatedAt,
         order.UpdatedAt,
-        order.Items.Select(OrderItemDto.FromEntity).ToList(),
+        order.Items.Select(item => OrderItemDto.FromEntity(item, lang)).ToList(),
         order.StatusHistory
             .OrderBy(h => h.ChangedAt)
             .Select(OrderStatusHistoryDto.FromEntity)

@@ -8,7 +8,8 @@ namespace Application.Features.Orders.Queries.GetOrderById;
 
 public sealed class GetOrderByIdHandler(
     IOrderRepository orders,
-    ICurrentUserService user)
+    ICurrentUserService user,
+    ICurrentLanguageProvider currentLanguageProvider)
     : IRequestHandler<GetOrderByIdQuery, Result<OrderDetailDto>>
 {
     public async Task<Result<OrderDetailDto>> Handle(
@@ -28,6 +29,7 @@ public sealed class GetOrderByIdHandler(
             return Result<OrderDetailDto>.Failure(
                 Error.NotFound("Order.NotFound", "Order not found."));
 
-        return Result<OrderDetailDto>.Success(OrderDetailDto.FromEntity(order));
+        return Result<OrderDetailDto>.Success(
+            OrderDetailDto.FromEntity(order, currentLanguageProvider.Language));
     }
 }

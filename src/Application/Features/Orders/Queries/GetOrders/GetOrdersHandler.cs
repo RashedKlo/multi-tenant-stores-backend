@@ -9,7 +9,8 @@ namespace Application.Features.Orders.Queries.GetOrders;
 
 public sealed class GetOrdersHandler(
     IOrderRepository orders,
-    ICurrentUserService user)
+    ICurrentUserService user,
+    ICurrentLanguageProvider currentLanguageProvider)
     : IRequestHandler<GetOrdersQuery, Result<PagedResult<OrderSummaryDto>>>
 {
     public async Task<Result<PagedResult<OrderSummaryDto>>> Handle(
@@ -30,7 +31,7 @@ public sealed class GetOrdersHandler(
             pageSize,
             cancellationToken);
 
-        var dtos = items.Select(OrderSummaryDto.FromEntity).ToList();
+        var dtos = items.Select(order => OrderSummaryDto.FromEntity(order,currentLanguageProvider.Language)).ToList();
 
         return Result<PagedResult<OrderSummaryDto>>.Success(
             PagedResult<OrderSummaryDto>.Create(dtos, page, pageSize, totalCount));
