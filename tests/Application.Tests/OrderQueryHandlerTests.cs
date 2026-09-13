@@ -34,11 +34,14 @@ public class OrderQueryHandlerTests
         user.IsAuthenticated.Returns(true);
         user.CustomerId.Returns(customerId);
 
+        var language = Substitute.For<ICurrentLanguageProvider>();
+        language.Language.Returns(Language.Ar);
+
         var orders = Substitute.For<IOrderRepository>();
         orders.GetPagedByCustomerAsync(customerId, null, 1, 20, Arg.Any<CancellationToken>())
             .Returns((new List<Order> { order }, 1));
 
-        var handler = new GetOrdersHandler(orders, user);
+        var handler = new GetOrdersHandler(orders, user, language);
 
         var result = await handler.Handle(new GetOrdersQuery(null, 1, 20), CancellationToken.None);
 
@@ -71,17 +74,20 @@ public class OrderQueryHandlerTests
         user.IsAuthenticated.Returns(true);
         user.CustomerId.Returns(customerId);
 
+        var language = Substitute.For<ICurrentLanguageProvider>();
+        language.Language.Returns(Language.Ar);
+
         var orders = Substitute.For<IOrderRepository>();
         orders.GetByIdForCustomerAsync(order.Id, customerId, Arg.Any<CancellationToken>())
             .Returns(order);
 
-        var handler = new GetOrderByIdHandler(orders, user);
+        var handler = new GetOrderByIdHandler(orders, user, language);
 
         var result = await handler.Handle(new GetOrderByIdQuery(order.Id), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Id.Should().Be(order.Id);
         result.Value.Items.Should().ContainSingle();
-        result.Value.Items[0].NameEn.Should().Be("Keyboard");
+        result.Value.Items[0].Name.Should().Be("لوحة مفاتيح");
     }
 }
