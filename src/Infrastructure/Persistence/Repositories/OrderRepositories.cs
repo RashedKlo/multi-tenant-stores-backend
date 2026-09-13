@@ -14,7 +14,7 @@ public class OrderRepository : IOrderRepository
 
     public Task<Order?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         _context.Orders
-            .AsNoTracking()
+            .AsTracking()
             .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
 
     public Task<Order?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default) =>

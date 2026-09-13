@@ -41,8 +41,7 @@ namespace Infrastructure.Persistence.Configurations
             builder.Property(x => x.Id)
                 .HasColumnName("id")
                 .HasColumnType("uuid")
-                .HasDefaultValueSql("gen_random_uuid()")
-                .IsRequired();
+                .ValueGeneratedNever();
 
             builder.Property(x => x.CustomerId)
                 .HasColumnName("customer_id")
