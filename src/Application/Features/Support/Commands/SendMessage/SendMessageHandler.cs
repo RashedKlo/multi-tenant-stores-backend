@@ -35,7 +35,7 @@ public sealed class SendMessageHandler(
         if (touchResult.IsFailure)
             return Result<MessageDto>.Failure(touchResult.Errors);
 
-        messages.Add(messageResult.Value!);
+       await   messages.AddAsync(messageResult.Value!,cancellationToken);
         await messages.SaveChangesAsync(cancellationToken); // also flushes conversation.LastMessageAt (same DbContext)
 
         var dto = MessageDto.FromEntity(messageResult.Value!);

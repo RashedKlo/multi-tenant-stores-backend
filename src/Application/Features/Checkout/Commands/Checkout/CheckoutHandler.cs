@@ -91,7 +91,7 @@ public sealed class CheckoutHandler(
             return Result<CheckoutResultDto>.Failure(
                 Error.Validation("Checkout.InvalidTotal", "Order total must be greater than zero."));
 
-        orderRepository.Add(order);
+      await  orderRepository.AddAsync(order);
         await orderRepository.SaveChangesAsync(cancellationToken);
 
         CreateCheckoutSessionResult session;

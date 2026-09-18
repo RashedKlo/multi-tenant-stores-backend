@@ -22,9 +22,7 @@ public sealed class ChangeOrderStatusHandler(
         var result = order.ChangeStatus(request.NewStatus, request.Note, ChangedByType.Tenant);
         if (result.IsFailure)
             return result;
-
         await orders.SaveChangesAsync(cancellationToken);
-
         await notifier.NotifyStatusChangedAsync(
             order.CustomerId,
             order.Id,

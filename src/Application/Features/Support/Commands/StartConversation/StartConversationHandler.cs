@@ -27,7 +27,7 @@ public sealed class StartConversationHandler(
         if (result.IsFailure)
             return Result<Guid>.Failure(result.Errors);
 
-        conversations.Add(result.Value!);
+       await conversations.AddAsync(result.Value!,cancellationToken);
         await conversations.SaveChangesAsync(cancellationToken);
 
         return Result<Guid>.Success(result.Value!.Id);
