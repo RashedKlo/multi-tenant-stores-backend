@@ -13,9 +13,7 @@ public class GuestSessionRepository : IGuestSessionRepository
     public Task<GuestSession?> GetByTokenHashAsync(string tokenHash, CancellationToken cancellationToken = default) =>
         _context.GuestSessions.FirstOrDefaultAsync(s => s.TokenHash == tokenHash, cancellationToken);
 
-    public  async Task AddAsync(GuestSession session, CancellationToken cancellationToken = default) => _context.GuestSessions.Add(session);
-    public void Update(GuestSession session, CancellationToken cancellationToken = default) => _context.GuestSessions.Update(session);
-    public void Delete(GuestSession session, CancellationToken cancellationToken = default) => _context.GuestSessions.Remove(session);
+    public  async Task AddAsync(GuestSession session, CancellationToken cancellationToken = default) => await _context.GuestSessions.AddAsync(session,cancellationToken);
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
         _context.SaveChangesAsync(cancellationToken);

@@ -24,9 +24,7 @@ public class CustomerRepository : ICustomerRepository
     public Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default) =>
         _context.Customers.AsNoTracking().AnyAsync(c => c.Email == email, cancellationToken);
 
-    public  async Task AddAsync(Customer customer, CancellationToken cancellationToken = default) => _context.Customers.Add(customer);
-    public void Update(Customer customer, CancellationToken cancellationToken = default) => _context.Customers.Update(customer);
-    public void Delete(Customer customer, CancellationToken cancellationToken = default) => _context.Customers.Remove(customer);
+    public  async Task AddAsync(Customer customer, CancellationToken cancellationToken = default) =>await _context.Customers.AddAsync(customer,cancellationToken);
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
         _context.SaveChangesAsync(cancellationToken);

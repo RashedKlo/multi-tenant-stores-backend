@@ -25,7 +25,7 @@ public sealed class SupportConversationRepository(AppDbContext context) : ISuppo
                 c => c.CustomerId == customerId && c.TenantId == tenantId && c.DeletedAt == null,
                 cancellationToken);
 
-    public void Add(SupportConversation conversation) => context.SupportConversations.Add(conversation);
+    public async Task AddAsync(SupportConversation conversation,CancellationToken ct) =>await context.SupportConversations.AddAsync(conversation,ct);
 
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
         context.SaveChangesAsync(cancellationToken);

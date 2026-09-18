@@ -21,7 +21,7 @@ public sealed class SupportMessageRepository(AppDbContext context) : ISupportMes
                      && m.SenderId != senderId)
             .ToListAsync(cancellationToken);
 
-    public void Add(SupportMessage message) => context.SupportMessages.Add(message);
+    public async Task AddAsync(SupportMessage message,CancellationToken ct) =>await context.SupportMessages.AddAsync(message,ct);
 
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
         context.SaveChangesAsync(cancellationToken);

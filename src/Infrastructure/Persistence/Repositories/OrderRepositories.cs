@@ -61,8 +61,8 @@ public class OrderRepository : IOrderRepository
         return (items, totalCount);
     }
 
-    public void Add(Order order) => _context.Orders.Add(order);
-    public void Update(Order order) => _context.Orders.Update(order);
+      public  async Task AddAsync(Order order, CancellationToken cancellationToken = default) => await _context.Orders.AddAsync(order,cancellationToken);
+
 
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
         _context.SaveChangesAsync(cancellationToken);
