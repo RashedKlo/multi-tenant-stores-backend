@@ -10,7 +10,7 @@ public interface ISupportMessageRepository
     Task<List<SupportMessage>> GetUnreadNotSentByAsync(
         Guid conversationId, Guid senderId, CancellationToken cancellationToken = default);
 
-    void Add(SupportMessage message);
+    public Task AddAsync(SupportMessage message,CancellationToken ct);
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -12,7 +12,7 @@ public interface ISupportConversationRepository
     Task<SupportConversation?> GetOpenByCustomerAndTenantAsync(
         Guid customerId, Guid tenantId, CancellationToken cancellationToken = default);
 
-    void Add(SupportConversation conversation);
+Task AddAsync(SupportConversation conversation,CancellationToken ct);
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -20,7 +20,6 @@ public interface IOrderRepository
         int pageSize,
         CancellationToken cancellationToken = default);
 
-    void Add(Order order);
-
+    Task AddAsync(Order order, CancellationToken cancellationToken = default);
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
