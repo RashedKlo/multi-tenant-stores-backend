@@ -9,8 +9,34 @@ using MediatR;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Scalar.AspNetCore;
-
+using Serilog;
+using Serilog.Events;
+using Serilog.Exceptions;
 var builder = WebApplication.CreateBuilder(args);
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
+
+    builder.Host.UseSerilog((context, services, config) =>
+{
+    config
+        .ReadFrom.Configuration(context.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext()
+        .Enrich.WithMachineName()
+        .Enrich.WithThreadId()
+        .Enrich.WithExceptionDetails()
+        .WriteTo.File(
+            path: "Logs/log-.txt",
+            rollingInterval: RollingInterval.Day,
+            retainedFileCountLimit: 14,
+            fileSizeLimitBytes: 50_000_000,
+            rollOnFileSizeLimit: true,
+            shared: true,
+            outputTemplate:
+                "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] " +
+                "{SourceContext}{NewLine}{Message:lj}{NewLine}{Exception}{NewLine}");
+});
 
 // ── Services ──────────────────────────────────────────────
 builder.Services.AddApplication();
@@ -97,6 +123,17 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
     
 }
+app.UseSerilogRequestLogging(opts =>
+{
+    // Enrich each HTTP request log line with useful context
+    opts.EnrichDiagnosticContext = (diagCtx, httpCtx) =>
+    {
+        diagCtx.Set("RequestHost", httpCtx.Request.Host.Value);
+        diagCtx.Set("UserAgent", httpCtx.Request.Headers.UserAgent.ToString());
+        if (httpCtx.User.Identity?.IsAuthenticated == true)
+            diagCtx.Set("UserId", httpCtx.User.FindFirst("sub")?.Value);
+    };
+});
 
 app.UseCors("AllowLocalhost"); // Apply CORS policy
 app.UseRateLimiter();
@@ -111,4 +148,16 @@ app.MapControllers();
 
 
 
-app.Run();
+try
+{
+    Log.Information("Starting up multi-tenant-stores-backend");
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
