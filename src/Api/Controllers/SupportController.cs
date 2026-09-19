@@ -27,8 +27,8 @@ public sealed class SupportController(IMediator mediator) : ApiControllerBase
         => HandleResult(await mediator.Send(new GetMyConversationsQuery(), ct));
 
     [HttpPost]
-    [ProducesResponseType(typeof(Guid), StatusCodes.Status200OK)]
-    public async Task<ActionResult<Guid>> Start([FromBody] StartConversationRequest request, CancellationToken ct)
+    [ProducesResponseType(typeof(ConversationDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ConversationDto>> Start([FromBody] StartConversationRequest request, CancellationToken ct)
         => HandleResult(await mediator.Send(new StartConversationCommand(request.TenantId), ct));
 
     [HttpDelete("{id:guid}")]
