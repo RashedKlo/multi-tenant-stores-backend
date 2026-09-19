@@ -20,7 +20,8 @@ public sealed class SupportConversationRepository(AppDbContext context) : ISuppo
 
     public Task<SupportConversation?> GetOpenByCustomerAndTenantAsync(
         Guid customerId, Guid tenantId, CancellationToken cancellationToken = default) =>
-        context.SupportConversations
+        context.SupportConversations 
+            .Include(t=>t.Tenant)
             .FirstOrDefaultAsync(
                 c => c.CustomerId == customerId && c.TenantId == tenantId && c.DeletedAt == null,
                 cancellationToken);
