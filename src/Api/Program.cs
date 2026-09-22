@@ -59,7 +59,8 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowLocalhost", policy =>
       policy.WithOrigins(
-                "http://localhost:3000"
+                "http://localhost:3000",
+                "https://multi-tenant-stores-frontend.rashed-klo-dev.workers.dev"
             )
             .AllowAnyHeader()
             .AllowAnyMethod()
@@ -149,22 +150,6 @@ app.MapHub<SupportChatHub>("/hubs/support-chat");
 app.MapControllers();
 
 
-app.MapGet("/api/test-cache", async (IConnectionMultiplexer redis) =>
-{
-    var db = redis.GetDatabase();
-    var key = "test:local";
-
-    await db.StringSetAsync(key, $"Hello at {DateTime.UtcNow:O}", TimeSpan.FromMinutes(5));
-    var value = await db.StringGetAsync(key);
-
-    return Results.Ok(new
-    {
-        status = "Cache is working",
-        value = value.ToString(),
-        ttlSeconds = (await db.KeyTimeToLiveAsync(key))?.TotalSeconds
-    });
-})
-.AllowAnonymous();
 try
 {
     Log.Information("Starting up multi-tenant-stores-backend");
