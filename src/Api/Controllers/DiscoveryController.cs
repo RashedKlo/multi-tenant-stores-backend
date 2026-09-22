@@ -12,7 +12,6 @@ namespace Api.Controllers;
 
 [ApiController]
 [Route("api")]
-[EnableRateLimiting("fixed")]
 public class DiscoveryController(IMediator mediator) : ApiControllerBase
 {
     // -------------------- Home --------------------

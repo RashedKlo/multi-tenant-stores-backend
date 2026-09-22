@@ -18,7 +18,6 @@ namespace Api.Controllers;
 [ApiController]
 [Route("api/support/conversations")]
 [Authorize]
-[EnableRateLimiting("fixed")]
 public sealed class SupportController(IMediator mediator) : ApiControllerBase
 {
     [HttpGet]

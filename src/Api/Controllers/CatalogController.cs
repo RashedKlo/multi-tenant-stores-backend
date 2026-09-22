@@ -13,7 +13,6 @@ namespace Api.Controllers;
 
 [ApiController]
 [Route("api")]
-[EnableRateLimiting("fixed")]
 public class CatalogController(IMediator mediator) : ApiControllerBase
 {
     // -------------------- Store --------------------

@@ -16,7 +16,6 @@ namespace Api.Controllers;
 [ApiController]
 [Route("api/addresses")]
 [Authorize]
-[EnableRateLimiting("fixed")]
 public class AddressesController(IMediator mediator) : ApiControllerBase
 {
     /// <summary>

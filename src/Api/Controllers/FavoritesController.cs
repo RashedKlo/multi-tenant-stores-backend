@@ -16,7 +16,7 @@ namespace Api.Controllers;
 [ApiController]
 [Route("api/favorites")]
 [Authorize]
-[EnableRateLimiting("fixed")]
+[EnableRateLimiting("favorites")]
 public class FavoritesController(IMediator mediator) : ApiControllerBase
 {
     // -------------------- Products --------------------

@@ -13,7 +13,6 @@ namespace Api.Controllers;
 [ApiController]
 [Route("api/customers")]
 [Authorize]
-[EnableRateLimiting("fixed")]
 public class CustomersController(IMediator mediator) : ApiControllerBase
 {
     /// <summary>

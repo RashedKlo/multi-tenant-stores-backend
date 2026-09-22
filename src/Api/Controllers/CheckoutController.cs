@@ -10,7 +10,7 @@ namespace Api.Controllers;
 [ApiController]
 [Route("api/checkout")]
 [Authorize]
-[EnableRateLimiting("fixed")]
+[EnableRateLimiting("checkout")]
 public sealed class CheckoutController(IMediator mediator) : ApiControllerBase
 {
     /// <summary>

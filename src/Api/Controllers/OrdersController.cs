@@ -14,7 +14,6 @@ namespace Api.Controllers;
 [ApiController]
 [Route("api/orders")]
 [Authorize]
-[EnableRateLimiting("fixed")]
 public sealed class OrdersController(IMediator mediator) : ApiControllerBase
 {
     /// <summary>
@@ -44,9 +43,9 @@ public sealed class OrdersController(IMediator mediator) : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult> ChangeStatus(
-    [FromRoute] Guid id,
-    [FromBody] ChangeOrderStatusRequest request,
-    CancellationToken ct)
-    => HandleResult(await mediator.Send(
-        new ChangeOrderStatusCommand(id, request.NewStatus, request.Note), ct));
+        [FromRoute] Guid id,
+        [FromBody] ChangeOrderStatusRequest request,
+        CancellationToken ct)
+        => HandleResult(await mediator.Send(
+            new ChangeOrderStatusCommand(id, request.NewStatus, request.Note), ct));
 }

@@ -18,7 +18,6 @@ namespace Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-[EnableRateLimiting("fixed")]
 public class AuthController(IMediator mediator) : ApiControllerBase
 {
     // -------------------- Sessions --------------------
@@ -39,6 +38,7 @@ public class AuthController(IMediator mediator) : ApiControllerBase
     /// Tokens are issued only after email verification.
     /// </summary>
     [HttpPost("register")]
+    [EnableRateLimiting("auth-register")]
     [ProducesResponseType(typeof(RegisterResultDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
@@ -51,6 +51,7 @@ public class AuthController(IMediator mediator) : ApiControllerBase
     /// Verifies the email with the one-time code and returns access + refresh tokens.
     /// </summary>
     [HttpPost("verify-email")]
+    [EnableRateLimiting("auth-code")]
     [ProducesResponseType(typeof(AuthTokensDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<AuthTokensDto>> VerifyEmail(
@@ -62,6 +63,7 @@ public class AuthController(IMediator mediator) : ApiControllerBase
     /// Resends the email verification code. Always returns success to avoid email enumeration.
     /// </summary>
     [HttpPost("resend-verification")]
+    [EnableRateLimiting("auth-code")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<ActionResult> ResendVerification(
         [FromBody] ResendVerificationCommand command,
@@ -74,6 +76,7 @@ public class AuthController(IMediator mediator) : ApiControllerBase
     /// Logs in with email and password. Requires a verified email.
     /// </summary>
     [HttpPost("login")]
+    [EnableRateLimiting("auth-login")]
     [ProducesResponseType(typeof(AuthTokensDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -123,6 +126,7 @@ public class AuthController(IMediator mediator) : ApiControllerBase
     /// Sends a password-reset code by email. Always returns success to avoid email enumeration.
     /// </summary>
     [HttpPost("forgot-password")]
+    [EnableRateLimiting("auth-code")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<ActionResult> ForgotPassword(
         [FromBody] ForgotPasswordCommand command,
@@ -133,6 +137,7 @@ public class AuthController(IMediator mediator) : ApiControllerBase
     /// Resets the password using the one-time code from email.
     /// </summary>
     [HttpPost("reset-password")]
+    [EnableRateLimiting("auth-code")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult> ResetPassword(

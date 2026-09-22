@@ -1,19 +1,13 @@
 using System.Threading.RateLimiting;
 using Api.Hubs;
 using Application;
-using Application.Common.Behaviors;
 using Application.Common.Interfaces;
 using Infrastructure;
 using Infrastructure.Middleware;
-using Infrastructure.Persistence;
-using MediatR;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Scalar.AspNetCore;
 using Serilog;
-using Serilog.Events;
 using Serilog.Exceptions;
-using StackExchange.Redis;
 var builder = WebApplication.CreateBuilder(args);
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -28,6 +22,10 @@ Log.Logger = new LoggerConfiguration()
         .Enrich.WithMachineName()
         .Enrich.WithThreadId()
         .Enrich.WithExceptionDetails()
+        .WriteTo.Console(
+            outputTemplate:
+                "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] " +
+                "{SourceContext}{NewLine}{Message:lj}{NewLine}{Exception}{NewLine}")
         .WriteTo.File(
             path: "Logs/log-.txt",
             rollingInterval: RollingInterval.Day,
@@ -39,6 +37,8 @@ Log.Logger = new LoggerConfiguration()
                 "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] " +
                 "{SourceContext}{NewLine}{Message:lj}{NewLine}{Exception}{NewLine}");
 });
+
+
 
 // ── Services ──────────────────────────────────────────────
 builder.Services.AddApplication();
@@ -54,10 +54,9 @@ builder.Services.AddSingleton<IUserIdProvider, OrderTrackingUserIdProvider>();
 builder.Services.AddScoped<IOrderTrackingNotifier, OrderTrackingNotifier>();
 builder.Services.AddScoped<ISupportChatNotifier, SupportChatNotifier>();
 
-// CORS — allow Angular dev server
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowLocalhost", policy =>
+    options.AddPolicy("AllowOrigins", policy =>
       policy.WithOrigins(
                 "http://localhost:3000",
                 "https://multi-tenant-stores-frontend.rashed-klo-dev.workers.dev"
@@ -73,48 +72,38 @@ builder.Services.AddMiniProfiler(options =>
     options.ColorScheme = StackExchange.Profiling.ColorScheme.Dark;
 }).AddEntityFramework();
 
-
-
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddFixedWindowLimiter("fixed", opt =>
-    {
-        opt.PermitLimit = 30;          // max 30 requests
-        opt.Window = TimeSpan.FromMinutes(1); // per 1 minute
-        opt.QueueLimit = 0;            // no queuing
-    });
-    options.AddPolicy("auth-login", ctx =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            PartitionKey(ctx), _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 10, Window = TimeSpan.FromMinutes(15)
-            }));
 
-    options.AddPolicy("auth-email", ctx =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            PartitionKey(ctx), _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 3, Window = TimeSpan.FromMinutes(10)
-            }));
+    options.AddPolicy("auth-login", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(IpKey(ctx), _ => new FixedWindowRateLimiterOptions
+        { PermitLimit = 10, Window = TimeSpan.FromMinutes(15), QueueLimit = 0 }));
+
+    options.AddPolicy("auth-register", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(IpKey(ctx), _ => new FixedWindowRateLimiterOptions
+        { PermitLimit = 5, Window = TimeSpan.FromMinutes(15), QueueLimit = 0 }));
 
     options.AddPolicy("auth-code", ctx =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            PartitionKey(ctx), _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 5, Window = TimeSpan.FromMinutes(10)
-            }));
+        RateLimitPartition.GetFixedWindowLimiter(IpKey(ctx), _ => new FixedWindowRateLimiterOptions
+        { PermitLimit = 5, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
 
-    options.AddPolicy("auth-general", ctx =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            PartitionKey(ctx), _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 30, Window = TimeSpan.FromMinutes(10)
-            }));
+    options.AddPolicy("checkout", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(IpKey(ctx), _ => new FixedWindowRateLimiterOptions
+        { PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+
+    options.AddPolicy("favorites", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(IpKey(ctx), _ => new FixedWindowRateLimiterOptions
+        { PermitLimit = 30, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+
+    // ---- fallback for everything else not yet given a specific policy ----
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(IpKey(ctx), _ => new FixedWindowRateLimiterOptions
+        { PermitLimit = 100, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 });
 
-static string PartitionKey(HttpContext ctx) =>
-    ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+static string IpKey(HttpContext ctx) =>
+    $"ip:{ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
 
 
 var app = builder.Build();
@@ -138,7 +127,7 @@ app.UseSerilogRequestLogging(opts =>
     };
 });
 
-app.UseCors("AllowLocalhost"); // Apply CORS policy
+app.UseCors("AllowOrigins"); // Apply CORS policy
 app.UseRateLimiter();
 app.UseHttpsRedirection();
 app.UseAuthentication();
