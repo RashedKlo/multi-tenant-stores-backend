@@ -11,14 +11,15 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-services.AddMediatR(cfg =>
-{
-    cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly);
-    cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
-     cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
-});
+        services.AddMediatR(cfg =>
+        {
+            cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly);
+            cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
+            cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
+            cfg.AddOpenBehavior(typeof(CachingBehavior<,>));
+        });
 
-services.AddValidatorsFromAssemblyContaining(typeof(DependencyInjection));
+        services.AddValidatorsFromAssemblyContaining(typeof(DependencyInjection));
         return services;
     }
 }
