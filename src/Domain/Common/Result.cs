@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Domain.Common
 {
     public class Result
@@ -23,8 +25,7 @@ namespace Domain.Common
     {
         public T? Value { get; }
 
-        // Required by System.Text.Json
-        [System.Text.Json.Serialization.JsonConstructor]
+        [JsonConstructor]
         private Result(bool isSuccess, IReadOnlyList<Error> errors, T? value)
             : base(isSuccess, errors)
         {
