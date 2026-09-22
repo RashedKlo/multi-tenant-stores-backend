@@ -14,7 +14,7 @@ public sealed record ConversationDto(
     public static ConversationDto FromEntity(SupportConversation conversation) => new(
         conversation.Id,
         conversation.TenantId,
-        conversation.Tenant.Name,
+        conversation.Tenant?.Name ?? string.Empty,
         conversation.CustomerId,
         conversation.Status.ToString(),
         conversation.CreatedAt,
