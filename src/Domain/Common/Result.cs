@@ -23,8 +23,16 @@ namespace Domain.Common
     {
         public T? Value { get; }
 
-        private Result(T value) : base(true, Array.Empty<Error>()) => Value = value;
-        private Result(IReadOnlyList<Error> errors) : base(false, errors) { }
+        // Required by System.Text.Json
+        [System.Text.Json.Serialization.JsonConstructor]
+        private Result(bool isSuccess, IReadOnlyList<Error> errors, T? value)
+            : base(isSuccess, errors)
+        {
+            Value = value;
+        }
+
+        private Result(T value) : this(true, Array.Empty<Error>(), value) { }
+        private Result(IReadOnlyList<Error> errors) : this(false, errors, default) { }
 
         public static Result<T> Success(T value) => new(value);
         public static new Result<T> Failure(Error error) => new(new[] { error });
