@@ -5,7 +5,7 @@ namespace Application.Common.Interfaces;
 public interface ICartQueries
 {
     Task<IReadOnlyList<CartItemDto>> GetCartItemsAsync(
-        Guid? customerId, Guid? guestSessionId, Language lang);
+        Guid? customerId, Guid? guestSessionId, Language lang,CancellationToken cancellationToken = default);
 
     Task<CheckoutCartDto?> GetCartForCheckoutAsync(
         Guid customerId, Guid storeId,
