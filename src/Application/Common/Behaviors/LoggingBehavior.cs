@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Domain.Common;                     // ← adjust if your Result lives elsewhere
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -24,9 +25,28 @@ public sealed class LoggingBehavior<TRequest, TResponse>(
             var response = await next();
             sw.Stop();
 
-            logger.LogInformation(
-                "Handled {RequestName} in {ElapsedMilliseconds}ms",
-                requestName, sw.ElapsedMilliseconds);
+            // Special handling when the response is a Result / Result<T>
+            if (response is Result result)
+            {
+                if (result.IsFailure)
+                {
+                    logger.LogWarning(
+                        "Handled {RequestName} in {ElapsedMilliseconds}ms → FAILURE {@Errors}",
+                        requestName, sw.ElapsedMilliseconds, result.Errors);
+                }
+                else
+                {
+                    logger.LogInformation(
+                        "Handled {RequestName} in {ElapsedMilliseconds}ms → SUCCESS",
+                        requestName, sw.ElapsedMilliseconds);
+                }
+            }
+            else
+            {
+                logger.LogInformation(
+                    "Handled {RequestName} in {ElapsedMilliseconds}ms",
+                    requestName, sw.ElapsedMilliseconds);
+            }
 
             return response;
         }
