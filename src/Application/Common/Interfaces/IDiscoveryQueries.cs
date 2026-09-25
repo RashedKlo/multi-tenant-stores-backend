@@ -19,6 +19,7 @@ public interface IDiscoveryQueries
         CancellationToken ct = default);
 
     Task<PagedResult<StoreSummaryDto>> GetStoresByModuleAsync(
+        Guid? customerId,
         Guid moduleId,
         Guid? categoryId,
         string? search,

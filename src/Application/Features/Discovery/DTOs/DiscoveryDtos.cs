@@ -59,12 +59,4 @@ public record ModuleDetailDto(
 /// <summary>
 /// Thin store card for browse grids. Full detail lives in Catalog module.
 /// </summary>
-public record StoreSummaryDto(Guid Id, string Name, string? LogoUrl, decimal Rating)
-{
-    public static StoreSummaryDto FromEntity(Domain.Entities.Store store, Language lang) =>
-        new(store.Id, lang.Localize(store.NameEn, store.NameAr), store.LogoUrl, store.Rating);
-
-    public static IReadOnlyList<StoreSummaryDto> FromEntities(
-        IEnumerable<Domain.Entities.Store> stores, Language lang) =>
-        stores.Select(s => FromEntity(s, lang)).ToList();
-}
+public record StoreSummaryDto(Guid Id, string Name, string? LogoUrl, decimal Rating,bool IsFavorite);

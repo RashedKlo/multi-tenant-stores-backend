@@ -8,6 +8,7 @@ namespace Application.Discovery.Queries.GetStoresByModule;
 
 public sealed class GetStoresByModuleHandler(
     IDiscoveryQueries discoveryQueries,
+    ICurrentUserService currentUser,
     ICurrentLanguageProvider currentLanguageProvider)
     : IRequestHandler<GetStoresByModuleQuery, Result<PagedResult<StoreSummaryDto>>>
 {
@@ -16,6 +17,7 @@ public sealed class GetStoresByModuleHandler(
         CancellationToken cancellationToken)
     {
         var result = await discoveryQueries.GetStoresByModuleAsync(
+            currentUser.CustomerId,
             request.ModuleId,
             request.CategoryId,
             request.Search,

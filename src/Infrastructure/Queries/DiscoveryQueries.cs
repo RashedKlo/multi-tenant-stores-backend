@@ -112,6 +112,7 @@ public sealed class DiscoveryQueries : IDiscoveryQueries
     }
 
     public async Task<PagedResult<StoreSummaryDto>> GetStoresByModuleAsync(
+        Guid? customerId,
         Guid moduleId,
         Guid? categoryId,
         string? search,
@@ -143,7 +144,11 @@ public sealed class DiscoveryQueries : IDiscoveryQueries
         var countSql = $"""SELECT COUNT(*) FROM stores s WHERE {where}""";
 
         var dataSql = $"""
-            SELECT s.id, s.name_en, s.name_ar, s.logo_url, s.rating
+            SELECT s.id, s.name_en, s.name_ar, s.logo_url, s.rating,EXISTS (
+                    SELECT 1 FROM favorite_stores fs
+                    WHERE fs.store_id = s.id
+                      AND fs.customer_id = @CustomerId
+                ) AS is_favorite
             FROM stores s
             WHERE {where}
             ORDER BY s.rating DESC, s.name_en
@@ -156,6 +161,7 @@ public sealed class DiscoveryQueries : IDiscoveryQueries
         {
             ModuleId = moduleId,
             CategoryId = categoryId,
+            CustomerId = customerId,
             Search = string.IsNullOrWhiteSpace(search) ? null : $"%{search.Trim()}%",
             Offset = (page - 1) * pageSize,
             PageSize = pageSize
@@ -171,7 +177,8 @@ public sealed class DiscoveryQueries : IDiscoveryQueries
             r.Id,
             lang.Localize(r.NameEn, r.NameAr),
             r.LogoUrl,
-            r.Rating)).ToList();
+            r.Rating,
+            r.IsFavorite)).ToList();
 
         return PagedResult<StoreSummaryDto>.Create(items, page, pageSize, total);
     }
@@ -219,5 +226,6 @@ public sealed class DiscoveryQueries : IDiscoveryQueries
         public string NameAr { get; init; } = default!;
         public string? LogoUrl { get; init; }
         public decimal Rating { get; init; }
+        public bool IsFavorite { get; init; }
     }
 }
