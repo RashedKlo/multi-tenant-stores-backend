@@ -21,3 +21,8 @@ public sealed record AddressDto(
         a.IsDefault,
         a.CreatedAt);
 }
+
+public sealed record DefaultAddressDto(
+    Guid Id,
+    decimal Latitude,
+    decimal Longitude);

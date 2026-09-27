@@ -6,6 +6,7 @@ using Application.Customers.Commands.UpdateProfile;
 using Application.Customers.Queries.GetMe;
 using Application.Favorites.Commands.AddFavoriteProduct;
 using Application.Favorites.Commands.RemoveFavoriteProduct;
+using Application.Addresses.Queries.GetDefaultAddress;
 using Application.Features.Cart.Commands.AddCartItem;
 using Application.Features.Cart.Commands.ClearCart;
 using Application.Features.Cart.Commands.UpdateCartItem;
@@ -120,6 +121,50 @@ public class CustomerFeatureHandlerTests
 
 public class AddressFeatureHandlerTests
 {
+    [Fact]
+    public async Task GetDefaultAddress_WhenDefaultExists_ReturnsAddressDto()
+    {
+        var customerId = Guid.NewGuid();
+        var address = CustomerAddress.Create(
+            customerId, "Home", 12.5m, 45.9m, "123 Main St", true).Value!;
+
+        var user = Substitute.For<ICurrentUserService>();
+        user.IsAuthenticated.Returns(true);
+        user.CustomerId.Returns(customerId);
+
+        var addresses = Substitute.For<ICustomerAddressRepository>();
+        addresses.GetDefaultForCustomerAsync(customerId, Arg.Any<CancellationToken>())
+            .Returns(address);
+
+        var handler = new GetDefaultAddressHandler(addresses, user);
+
+        var result = await handler.Handle(new GetDefaultAddressQuery(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Id.Should().Be(address.Id);
+        result.Value.IsDefault.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetDefaultAddress_WhenDefaultDoesNotExist_ReturnsNotFound()
+    {
+        var customerId = Guid.NewGuid();
+        var user = Substitute.For<ICurrentUserService>();
+        user.IsAuthenticated.Returns(true);
+        user.CustomerId.Returns(customerId);
+
+        var addresses = Substitute.For<ICustomerAddressRepository>();
+        addresses.GetDefaultForCustomerAsync(customerId, Arg.Any<CancellationToken>())
+            .Returns((CustomerAddress?)null);
+
+        var handler = new GetDefaultAddressHandler(addresses, user);
+
+        var result = await handler.Handle(new GetDefaultAddressQuery(), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Errors.Should().ContainSingle(error => error.Code == "Address.NotFound");
+    }
+
     [Fact]
     public async Task CreateAddress_WhenValidRequest_AddsAddressForCustomer()
     {

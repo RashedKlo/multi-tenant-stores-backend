@@ -5,6 +5,7 @@ using Application.Addresses.Commands.SetDefaultAddress;
 using Application.Addresses.Commands.UpdateAddress;
 using Application.Addresses.Queries.GetAddressById;
 using Application.Addresses.Queries.GetAddresses;
+using Application.Addresses.Queries.GetDefaultAddress;
 using Application.Features.Addresses.DTOs;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -25,6 +26,15 @@ public class AddressesController(IMediator mediator) : ApiControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<AddressDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<AddressDto>>> GetAddresses(CancellationToken ct)
         => HandleResult(await mediator.Send(new GetAddressesQuery(), ct));
+
+    /// <summary>
+    /// Returns the default address of the current customer.
+    /// </summary>
+    [HttpGet("default")]
+    [ProducesResponseType(typeof(DefaultAddressDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<DefaultAddressDto>> GetDefault(CancellationToken ct)
+        => HandleResult(await mediator.Send(new GetDefaultAddressQuery(), ct));
 
     /// <summary>
     /// Returns a single address by id.
