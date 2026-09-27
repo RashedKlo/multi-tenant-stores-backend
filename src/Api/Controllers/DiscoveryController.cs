@@ -1,6 +1,7 @@
 using Application.Common.Models;
 using Application.Discovery.DTOs;
 using Application.Discovery.Queries.GetHomeBanners;
+using Application.Discovery.Queries.GetNearByStores;
 using Application.Discovery.Queries.GetModuleDetail;
 using Application.Discovery.Queries.GetModules;
 using Application.Discovery.Queries.GetStoresByModule;
@@ -63,4 +64,19 @@ public class DiscoveryController(IMediator mediator) : ApiControllerBase
         CancellationToken ct = default)
         => HandleResult(await mediator.Send(
             new GetStoresByModuleQuery(id, categoryId, search, page, pageSize), ct));
+
+    /// <summary>
+    /// Returns a paged list of active stores within the requested radius.
+    /// </summary>
+    [HttpGet("stores/nearby")]
+    [ProducesResponseType(typeof(PagedResult<NearbyStoreDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PagedResult<NearbyStoreDto>>> GetNearByStores(
+        [FromQuery] decimal latitude,
+        [FromQuery] decimal longitude,
+        [FromQuery] int radiusKm = 10,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct = default)
+        => HandleResult(await mediator.Send(
+            new GetNearByStoresQuery(latitude, longitude, radiusKm, page, pageSize), ct));
 }

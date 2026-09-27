@@ -182,7 +182,47 @@ public sealed class DiscoveryQueries : IDiscoveryQueries
 
         return PagedResult<StoreSummaryDto>.Create(items, page, pageSize, total);
     }
+public async Task<PagedResult<NearbyStoreDto>> GetNearbyStoresAsync(
+    decimal lat, decimal lng, int radiusKm, int page, int pageSize,
+     Language lang, CancellationToken ct = default)
+{
+    // Haversine, in km. 6371 = Earth radius.
+    const string distanceExpr = """
+        6371 * acos(
+            cos(radians(@Lat)) * cos(radians(s.latitude)) *
+            cos(radians(s.longitude) - radians(@Lng)) +
+            sin(radians(@Lat)) * sin(radians(s.latitude))
+        )
+        """;
 
+    var where = $"""
+        s.is_active = true AND s.deleted_at IS NULL
+        AND s.latitude IS NOT NULL AND s.longitude IS NOT NULL
+        AND ({distanceExpr}) <= @RadiusKm
+        """;
+
+    var countSql = $"SELECT COUNT(*) FROM stores s WHERE {where}";
+
+    var dataSql = $"""
+        SELECT s.id, s.name_en, s.name_ar, s.logo_url, s.rating,
+               ({distanceExpr}) AS distance_km
+        FROM stores s
+        WHERE {where}
+        ORDER BY distance_km
+        OFFSET @Offset LIMIT @PageSize
+        """;
+
+    await using var conn = (System.Data.Common.DbConnection)_connectionFactory.CreateConnection();
+    var param = new { Lat = lat, Lng = lng, RadiusKm = radiusKm, Offset = (page - 1) * pageSize, PageSize = pageSize };
+
+    var total = await conn.ExecuteScalarAsync<int>(new CommandDefinition(countSql, param, cancellationToken: ct));
+    var rows = await conn.QueryAsync<NearbyStoreRow>(new CommandDefinition(dataSql, param, cancellationToken: ct));
+
+    var items = rows.Select(r => new NearbyStoreDto(
+        r.Id, lang.Localize(r.NameEn, r.NameAr), r.LogoUrl, r.Rating, r.DistanceKm)).ToList();
+
+    return PagedResult<NearbyStoreDto>.Create(items, page, pageSize, total);
+}
     private sealed class HomeBannerRow
     {
         public Guid Id { get; init; }
@@ -228,4 +268,14 @@ public sealed class DiscoveryQueries : IDiscoveryQueries
         public decimal Rating { get; init; }
         public bool IsFavorite { get; init; }
     }
+
+    private sealed class NearbyStoreRow
+{
+    public Guid Id { get; init; }
+    public string NameEn { get; init; } = default!;
+    public string NameAr { get; init; } = default!;
+    public string? LogoUrl { get; init; }
+    public decimal Rating { get; init; }
+    public double DistanceKm { get; init; }
+}
 }
