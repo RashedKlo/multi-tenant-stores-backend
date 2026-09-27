@@ -5,6 +5,7 @@ using Application.Catalog.Queries.GetStoreBanners;
 using Application.Catalog.Queries.GetStoreById;
 using Application.Catalog.Queries.GetStoreSections;
 using Application.Common.Models;
+using Api.Requests.Catalog;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -24,9 +25,9 @@ public class CatalogController(IMediator mediator) : ApiControllerBase
     [ProducesResponseType(typeof(StoreDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<StoreDetailDto>> GetStore(
-        [FromRoute] Guid id,
+        [FromRoute] GetStoreRequest request,
         CancellationToken ct)
-        => HandleResult(await mediator.Send(new GetStoreByIdQuery(id), ct));
+        => HandleResult(await mediator.Send(new GetStoreByIdQuery(request.Id), ct));
 
     /// <summary>
     /// Returns the active banners of a store.
@@ -35,9 +36,9 @@ public class CatalogController(IMediator mediator) : ApiControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<StoreBannerDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<IReadOnlyList<StoreBannerDto>>> GetStoreBanners(
-        [FromRoute] Guid id,
+        [FromRoute] GetStoreBannersRequest request,
         CancellationToken ct)
-        => HandleResult(await mediator.Send(new GetStoreBannersQuery(id), ct));
+        => HandleResult(await mediator.Send(new GetStoreBannersQuery(request.Id), ct));
 
     /// <summary>
     /// Returns a paged list of sections belonging to a store.
@@ -47,10 +48,10 @@ public class CatalogController(IMediator mediator) : ApiControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PagedResult<StoreSectionDto>>> GetStoreSections(
         [FromRoute] Guid id,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] GetStoreSectionsRequest request,
         CancellationToken ct = default)
-        => HandleResult(await mediator.Send(new GetStoreSectionsQuery(id, page, pageSize), ct));
+        => HandleResult(await mediator.Send(
+            new GetStoreSectionsQuery(id, request.Page, request.PageSize), ct));
 
     // -------------------- Section / Products --------------------
 
@@ -63,14 +64,16 @@ public class CatalogController(IMediator mediator) : ApiControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PagedResult<ProductSummaryDto>>> GetProductsBySection(
         [FromRoute] Guid id,
-        [FromQuery] bool? inStockOnly,
-        [FromQuery] decimal? minPrice,
-        [FromQuery] decimal? maxPrice,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] GetProductsBySectionRequest request,
         CancellationToken ct = default)
         => HandleResult(await mediator.Send(
-            new GetProductsBySectionQuery(id, inStockOnly, minPrice, maxPrice, page, pageSize), ct));
+            new GetProductsBySectionQuery(
+                id,
+                request.InStockOnly,
+                request.MinPrice,
+                request.MaxPrice,
+                request.Page,
+                request.PageSize), ct));
 
     // -------------------- Product --------------------
 
@@ -81,7 +84,7 @@ public class CatalogController(IMediator mediator) : ApiControllerBase
     [ProducesResponseType(typeof(ProductDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ProductDetailDto>> GetProduct(
-        [FromRoute] Guid id,
+        [FromRoute] GetProductRequest request,
         CancellationToken ct)
-        => HandleResult(await mediator.Send(new GetProductByIdQuery(id), ct));
+        => HandleResult(await mediator.Send(new GetProductByIdQuery(request.Id), ct));
 }

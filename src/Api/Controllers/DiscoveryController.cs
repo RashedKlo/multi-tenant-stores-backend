@@ -5,6 +5,7 @@ using Application.Discovery.Queries.GetNearByStores;
 using Application.Discovery.Queries.GetModuleDetail;
 using Application.Discovery.Queries.GetModules;
 using Application.Discovery.Queries.GetStoresByModule;
+using Api.Requests.Discovery;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -44,9 +45,9 @@ public class DiscoveryController(IMediator mediator) : ApiControllerBase
     [ProducesResponseType(typeof(ModuleDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ModuleDetailDto>> GetModuleDetail(
-        [FromRoute] Guid id,
+        [FromRoute] GetModuleDetailRequest request,
         CancellationToken ct)
-        => HandleResult(await mediator.Send(new GetModuleDetailQuery(id), ct));
+        => HandleResult(await mediator.Send(new GetModuleDetailQuery(request.Id), ct));
 
     /// <summary>
     /// Returns a paged list of stores that belong to a module.
@@ -57,13 +58,10 @@ public class DiscoveryController(IMediator mediator) : ApiControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PagedResult<StoreSummaryDto>>> GetStoresByModule(
         [FromRoute] Guid id,
-        [FromQuery] Guid? categoryId,
-        [FromQuery] string? search,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] GetStoresByModuleRequest request,
         CancellationToken ct = default)
         => HandleResult(await mediator.Send(
-            new GetStoresByModuleQuery(id, categoryId, search, page, pageSize), ct));
+            new GetStoresByModuleQuery(id, request.CategoryId, request.Search, request.Page, request.PageSize), ct));
 
     /// <summary>
     /// Returns a paged list of active stores within the requested radius.
@@ -71,12 +69,13 @@ public class DiscoveryController(IMediator mediator) : ApiControllerBase
     [HttpGet("stores/nearby")]
     [ProducesResponseType(typeof(PagedResult<NearbyStoreDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResult<NearbyStoreDto>>> GetNearByStores(
-        [FromQuery] decimal latitude,
-        [FromQuery] decimal longitude,
-        [FromQuery] int radiusKm = 10,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] GetNearbyStoresRequest request,
         CancellationToken ct = default)
         => HandleResult(await mediator.Send(
-            new GetNearByStoresQuery(latitude, longitude, radiusKm, page, pageSize), ct));
+            new GetNearByStoresQuery(
+                request.Latitude,
+                request.Longitude,
+                request.RadiusKm,
+                request.Page,
+                request.PageSize), ct));
 }

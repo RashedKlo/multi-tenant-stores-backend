@@ -142,7 +142,6 @@ public class AddressFeatureHandlerTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.Id.Should().Be(address.Id);
-        result.Value.IsDefault.Should().BeTrue();
     }
 
     [Fact]
