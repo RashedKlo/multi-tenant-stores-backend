@@ -223,6 +223,96 @@ public async Task<PagedResult<NearbyStoreDto>> GetNearbyStoresAsync(
 
     return PagedResult<NearbyStoreDto>.Create(items, page, pageSize, total);
 }
+
+    public async Task<PagedResult<StoreSummaryDto>> GetNewStoresAsync(
+        int page, int pageSize, Language lang, CancellationToken ct = default)
+    {
+        const string where = "s.is_active = true AND s.deleted_at IS NULL";
+
+        var countSql = $"SELECT COUNT(*) FROM stores s WHERE {where}";
+
+        var dataSql = $"""
+            SELECT s.id, s.name_en, s.name_ar, s.logo_url, s.rating
+            FROM stores s
+            WHERE {where}
+            ORDER BY s.created_at DESC
+            OFFSET @Offset LIMIT @PageSize
+            """;
+
+        await using var conn = (System.Data.Common.DbConnection)_connectionFactory.CreateConnection();
+        var param = new { Offset = (page - 1) * pageSize, PageSize = pageSize };
+
+        var total = await conn.ExecuteScalarAsync<int>(
+            new CommandDefinition(countSql, param, cancellationToken: ct));
+        var rows = await conn.QueryAsync<StoreSummaryRow>(
+            new CommandDefinition(dataSql, param, cancellationToken: ct));
+
+        var items = rows.Select(r => new StoreSummaryDto(
+            r.Id, lang.Localize(r.NameEn, r.NameAr), r.LogoUrl, r.Rating, false)).ToList();
+
+        return PagedResult<StoreSummaryDto>.Create(items, page, pageSize, total);
+    }
+
+    public async Task<PagedResult<DiscountedStoreDto>> GetDiscountedStoresAsync(
+    int page,
+    int pageSize,
+    Language lang,
+    CancellationToken ct = default)
+{
+    const string whereClause = """
+        s.is_active = true
+        AND s.deleted_at IS NULL
+        AND d.is_active = true
+        AND (d.start_date IS NULL OR d.start_date <= NOW())
+        AND (d.end_date IS NULL OR d.end_date >= NOW())
+        """;
+
+    var countSql = $"""
+        SELECT COUNT(DISTINCT s.id)
+        FROM stores s
+        JOIN discounts d ON d.store_id = s.id
+        WHERE {whereClause}
+        """;
+
+    var dataSql = $"""
+        SELECT s.id,
+               s.name_en,
+               s.name_ar,
+               s.logo_url,
+               s.rating,
+               MAX(
+                   CASE 
+                       WHEN d.type = 'Percentage' THEN d.value 
+                       WHEN d.type = 'FixedAmount' THEN ROUND( (d.value * 100.0) / NULLIF(p.price, 0), 2 ) 
+                       ELSE 0 
+                   END
+               ) AS max_percentage_off
+        FROM stores s
+        JOIN discounts d ON d.store_id = s.id
+        WHERE {whereClause}
+        GROUP BY s.id
+        ORDER BY max_percentage_off DESC NULLS LAST, s.rating DESC
+        OFFSET @Offset LIMIT @PageSize
+        """;
+
+    await using var connection = (System.Data.Common.DbConnection)_connectionFactory.CreateConnection();
+    var parameters = new { Offset = (page - 1) * pageSize, PageSize = pageSize };
+
+    var total = await connection.ExecuteScalarAsync<int>(
+        new CommandDefinition(countSql, parameters, cancellationToken: ct));
+
+    var rows = await connection.QueryAsync<DiscountedStoreRow>(
+        new CommandDefinition(dataSql, parameters, cancellationToken: ct));
+
+    var items = rows.Select(r => new DiscountedStoreDto(
+        r.Id,
+        lang.Localize(r.NameEn, r.NameAr),
+        r.LogoUrl,
+        r.Rating,
+        r.MaxPercentageOff)).ToList();
+
+    return PagedResult<DiscountedStoreDto>.Create(items, page, pageSize, total);
+}
     private sealed class HomeBannerRow
     {
         public Guid Id { get; init; }
@@ -270,12 +360,22 @@ public async Task<PagedResult<NearbyStoreDto>> GetNearbyStoresAsync(
     }
 
     private sealed class NearbyStoreRow
-{
-    public Guid Id { get; init; }
-    public string NameEn { get; init; } = default!;
-    public string NameAr { get; init; } = default!;
-    public string? LogoUrl { get; init; }
-    public decimal Rating { get; init; }
-    public double DistanceKm { get; init; }
-}
+    {
+        public Guid Id { get; init; }
+        public string NameEn { get; init; } = default!;
+        public string NameAr { get; init; } = default!;
+        public string? LogoUrl { get; init; }
+        public decimal Rating { get; init; }
+        public double DistanceKm { get; init; }
+    }
+
+    private sealed class DiscountedStoreRow
+    {
+        public Guid Id { get; init; }
+        public string NameEn { get; init; } = default!;
+        public string NameAr { get; init; } = default!;
+        public string? LogoUrl { get; init; }
+        public decimal Rating { get; init; }
+        public decimal? MaxPercentageOff { get; init; }
+    }
 }

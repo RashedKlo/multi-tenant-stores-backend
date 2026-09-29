@@ -5,6 +5,8 @@ using Application.Discovery.Queries.GetNearByStores;
 using Application.Discovery.Queries.GetModuleDetail;
 using Application.Discovery.Queries.GetModules;
 using Application.Discovery.Queries.GetStoresByModule;
+using Application.Discovery.Queries.GetNewStores;
+using Application.Discovery.Queries.GetDiscountedStores;
 using Api.Requests.Discovery;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -78,4 +80,26 @@ public class DiscoveryController(IMediator mediator) : ApiControllerBase
                 request.RadiusKm,
                 request.Page,
                 request.PageSize), ct));
+
+    /// <summary>
+    /// Returns active stores ordered by creation date, newest first.
+    /// </summary>
+    [HttpGet("stores/new")]
+    [ProducesResponseType(typeof(PagedResult<StoreSummaryDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PagedResult<StoreSummaryDto>>> GetNewStores(
+        [FromQuery] GetStoreListingRequest request,
+        CancellationToken ct = default)
+        => HandleResult(await mediator.Send(
+            new GetNewStoresQuery(request.Page, request.PageSize), ct));
+
+    /// <summary>
+    /// Returns active stores with currently valid discounts, ordered by percentage off.
+    /// </summary>
+    [HttpGet("stores/discounted")]
+    [ProducesResponseType(typeof(PagedResult<DiscountedStoreDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PagedResult<DiscountedStoreDto>>> GetDiscountedStores(
+        [FromQuery] GetStoreListingRequest request,
+        CancellationToken ct = default)
+        => HandleResult(await mediator.Send(
+            new GetDiscountedStoresQuery(request.Page, request.PageSize), ct));
 }
