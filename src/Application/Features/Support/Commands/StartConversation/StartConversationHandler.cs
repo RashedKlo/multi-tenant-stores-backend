@@ -11,6 +11,7 @@ namespace Application.Features.Support.Commands.StartConversation;
 
 public sealed class StartConversationHandler(
     ISupportConversationRepository conversations,
+    ISupportMessageRepository messages,
     ICurrentUserService user)
     : IRequestHandler<StartConversationCommand, Result<ConversationDto>>
 {
@@ -22,7 +23,16 @@ public sealed class StartConversationHandler(
         var existing = await conversations.GetOpenByCustomerAndTenantAsync(
             user.CustomerId.Value, request.TenantId, cancellationToken);
         if (existing is not null)
+        {
+        var unread = await messages.GetUnreadNotSentByAsync(existing.Id, user.CustomerId.Value, cancellationToken);
+        foreach (var message in unread)
+        {
+            var response = message.MarkAsRead();
+            if (response.IsFailure)
+                return Result<ConversationDto>.Failure(response.Errors);
+        }
             return Result<ConversationDto>.Success(ConversationDto.FromEntity(existing));
+        }
 
         var result = SupportConversation.Create(request.TenantId, user.CustomerId.Value);
         if (result.IsFailure)
