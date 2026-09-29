@@ -37,7 +37,7 @@ public interface IDiscoveryQueries
         Language lang,
         CancellationToken ct = default);
 
-    Task<PagedResult<StoreSummaryDto>> GetNewStoresAsync(
+    Task<PagedResult<NewStoreDto>> GetNewStoresAsync(
         int page,
         int pageSize,
         Language lang,

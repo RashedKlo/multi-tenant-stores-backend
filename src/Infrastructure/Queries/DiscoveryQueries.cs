@@ -224,7 +224,7 @@ public async Task<PagedResult<NearbyStoreDto>> GetNearbyStoresAsync(
     return PagedResult<NearbyStoreDto>.Create(items, page, pageSize, total);
 }
 
-    public async Task<PagedResult<StoreSummaryDto>> GetNewStoresAsync(
+    public async Task<PagedResult<NewStoreDto>> GetNewStoresAsync(
         int page, int pageSize, Language lang, CancellationToken ct = default)
     {
         const string where = "s.is_active = true AND s.deleted_at IS NULL";
@@ -232,7 +232,7 @@ public async Task<PagedResult<NearbyStoreDto>> GetNearbyStoresAsync(
         var countSql = $"SELECT COUNT(*) FROM stores s WHERE {where}";
 
         var dataSql = $"""
-            SELECT s.id, s.name_en, s.name_ar, s.logo_url, s.rating
+            SELECT s.id, s.name_en, s.name_ar, s.logo_url
             FROM stores s
             WHERE {where}
             ORDER BY s.created_at DESC
@@ -244,13 +244,13 @@ public async Task<PagedResult<NearbyStoreDto>> GetNearbyStoresAsync(
 
         var total = await conn.ExecuteScalarAsync<int>(
             new CommandDefinition(countSql, param, cancellationToken: ct));
-        var rows = await conn.QueryAsync<StoreSummaryRow>(
+        var rows = await conn.QueryAsync<NewStoreRow>(
             new CommandDefinition(dataSql, param, cancellationToken: ct));
 
-        var items = rows.Select(r => new StoreSummaryDto(
-            r.Id, lang.Localize(r.NameEn, r.NameAr), r.LogoUrl, r.Rating, false)).ToList();
+        var items = rows.Select(r => new NewStoreDto(
+            r.Id, lang.Localize(r.NameEn, r.NameAr), r.LogoUrl)).ToList();
 
-        return PagedResult<StoreSummaryDto>.Create(items, page, pageSize, total);
+        return PagedResult<NewStoreDto>.Create(items, page, pageSize, total);
     }
 
     public async Task<PagedResult<DiscountedStoreDto>> GetDiscountedStoresAsync(
@@ -356,6 +356,14 @@ public async Task<PagedResult<NearbyStoreDto>> GetNearbyStoresAsync(
         public string? LogoUrl { get; init; }
         public decimal Rating { get; init; }
         public bool IsFavorite { get; init; }
+    }
+       private sealed class NewStoreRow
+    {
+        public Guid Id { get; init; }
+        public string NameEn { get; init; } = default!;
+        public string NameAr { get; init; } = default!;
+        public string? LogoUrl { get; init; }
+   
     }
 
     private sealed class NearbyStoreRow

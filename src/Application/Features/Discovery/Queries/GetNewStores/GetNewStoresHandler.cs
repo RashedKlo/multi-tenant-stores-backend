@@ -9,9 +9,9 @@ namespace Application.Discovery.Queries.GetNewStores;
 public sealed class GetNewStoresHandler(
     IDiscoveryQueries discoveryQueries,
     ICurrentLanguageProvider currentLanguageProvider)
-    : IRequestHandler<GetNewStoresQuery, Result<PagedResult<StoreSummaryDto>>>
+    : IRequestHandler<GetNewStoresQuery, Result<PagedResult<NewStoreDto>>>
 {
-    public async Task<Result<PagedResult<StoreSummaryDto>>> Handle(
+    public async Task<Result<PagedResult<NewStoreDto>>> Handle(
         GetNewStoresQuery request,
         CancellationToken cancellationToken)
     {
@@ -21,6 +21,6 @@ public sealed class GetNewStoresHandler(
             currentLanguageProvider.Language,
             cancellationToken);
 
-        return Result<PagedResult<StoreSummaryDto>>.Success(stores);
+        return Result<PagedResult<NewStoreDto>>.Success(stores);
     }
 }

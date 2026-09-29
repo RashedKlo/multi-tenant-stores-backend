@@ -85,8 +85,8 @@ public class DiscoveryController(IMediator mediator) : ApiControllerBase
     /// Returns active stores ordered by creation date, newest first.
     /// </summary>
     [HttpGet("stores/new")]
-    [ProducesResponseType(typeof(PagedResult<StoreSummaryDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<PagedResult<StoreSummaryDto>>> GetNewStores(
+    [ProducesResponseType(typeof(PagedResult<NewStoreDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PagedResult<NewStoreDto>>> GetNewStores(
         [FromQuery] GetStoreListingRequest request,
         CancellationToken ct = default)
         => HandleResult(await mediator.Send(

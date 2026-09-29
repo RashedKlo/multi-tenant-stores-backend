@@ -60,6 +60,7 @@ public record ModuleDetailDto(
 /// Thin store card for browse grids. Full detail lives in Catalog module.
 /// </summary>
 public record StoreSummaryDto(Guid Id, string Name, string? LogoUrl, decimal Rating, bool IsFavorite);
+public record NewStoreDto(Guid Id, string Name, string? LogoUrl);
 public record NearbyStoreDto(Guid Id, string Name, string? LogoUrl, decimal Rating, double DistanceKm);
 public record DiscountedStoreDto(
     Guid Id,
