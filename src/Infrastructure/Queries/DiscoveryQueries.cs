@@ -283,7 +283,6 @@ public async Task<PagedResult<NearbyStoreDto>> GetNearbyStoresAsync(
                MAX(
                    CASE 
                        WHEN d.type = 'Percentage' THEN d.value 
-                       WHEN d.type = 'FixedAmount' THEN ROUND( (d.value * 100.0) / NULLIF(p.price, 0), 2 ) 
                        ELSE 0 
                    END
                ) AS max_percentage_off
