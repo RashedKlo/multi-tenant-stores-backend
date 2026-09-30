@@ -17,6 +17,7 @@ public sealed class GetStoreSectionsHandler(
     {
         var result = await catalogQueries.GetStoreSectionsAsync(
             request.StoreId,
+            discountedOnly: false,
             request.PageNumber,
             request.PageSize,
             currentLanguageProvider.Language,

@@ -17,5 +17,5 @@ public record GetProductsBySectionQuery(
     public string CacheKey =>
         $"products:section:{SectionId}:instock:{InStockOnly?.ToString() ?? "any"}:min:{MinPrice?.ToString() ?? "none"}:max:{MaxPrice?.ToString() ?? "none"}:page:{PageNumber}:size:{PageSize}";
 
-    public TimeSpan? Expiration => TimeSpan.FromMinutes(3);
+    public TimeSpan? Expiration => TimeSpan.FromMinutes(2);
 }

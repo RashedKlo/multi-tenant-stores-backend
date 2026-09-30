@@ -9,5 +9,5 @@ public record GetProductByIdQuery(Guid ProductId) : IRequest<Result<ProductDetai
 {
     public string CacheKey => $"product:{ProductId}";
 
-    public TimeSpan? Expiration => TimeSpan.FromMinutes(10);
+    public TimeSpan? Expiration => TimeSpan.FromMinutes(2);
 }

@@ -13,5 +13,5 @@ public record GetStoreSectionsQuery(
 {
     public string CacheKey => $"sections:store:{StoreId}:page:{PageNumber}:size:{PageSize}";
 
-    public TimeSpan? Expiration => TimeSpan.FromMinutes(5);
+    public TimeSpan? Expiration => TimeSpan.FromMinutes(2);
 }
