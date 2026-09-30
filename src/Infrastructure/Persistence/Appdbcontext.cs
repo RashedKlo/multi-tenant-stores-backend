@@ -35,6 +35,7 @@ public DbSet<CartItemOption> CartItemOptions => Set<CartItemOption>();
     public DbSet<OrderStatusHistory> OrderStatusHistories => Set<OrderStatusHistory>();
     public DbSet<FavoriteProduct> FavoriteProducts => Set<FavoriteProduct>();
     public DbSet<FavoriteStore> FavoriteStores => Set<FavoriteStore>();
+    public DbSet<StoreReview> StoreReviews => Set<StoreReview>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<SupportConversation> SupportConversations => Set<SupportConversation>();
