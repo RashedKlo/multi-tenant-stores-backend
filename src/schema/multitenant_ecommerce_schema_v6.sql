@@ -138,7 +138,6 @@ CREATE TABLE stores (
     address_ar      text,
     latitude        decimal(10,7) CHECK (latitude  IS NULL OR (latitude  BETWEEN -90  AND 90)),
     longitude       decimal(10,7) CHECK (longitude IS NULL OR (longitude BETWEEN -180 AND 180)),
-    rating          decimal(2,1) NOT NULL DEFAULT 0 CHECK (rating BETWEEN 0 AND 5),
     metadata        jsonb,
     is_active       boolean NOT NULL DEFAULT true,
     created_at      timestamptz NOT NULL DEFAULT now(),
@@ -615,6 +614,51 @@ CREATE TABLE support_messages (
 
 CREATE INDEX idx_support_messages_conversation_created
     ON support_messages (conversation_id, created_at);
+
+    -- ============================================================
+-- STORE REVIEWS
+-- ============================================================
+
+CREATE TABLE store_reviews (
+    id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    store_id      uuid NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+    customer_id   uuid NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    order_id      uuid NOT NULL UNIQUE REFERENCES orders(id) ON DELETE CASCADE,
+    rating        smallint NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comment       varchar(1000),
+    created_at    timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_store_reviews_store_id ON store_reviews(store_id);
+
+-- ============================================================
+-- COUPONS
+-- ============================================================
+
+CREATE TABLE coupons (
+    id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    store_id              uuid NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+    code                  varchar(50) NOT NULL,
+    discount_type         smallint NOT NULL CHECK (discount_type IN (1, 2)),
+    discount_value        numeric(12,2) NOT NULL,
+    max_discount_amount   numeric(12,2),
+    min_order_amount      numeric(12,2) NOT NULL DEFAULT 0,
+    starts_at             timestamptz NOT NULL,
+    expires_at            timestamptz,
+    is_active             boolean NOT NULL DEFAULT true,
+    usage_limit_total     int,
+    used_count            int NOT NULL DEFAULT 0,
+    created_at            timestamptz NOT NULL DEFAULT now(),
+    updated_at            timestamptz NOT NULL DEFAULT now()
+);
+
+-- Indexes (same pattern as your existing tables)
+CREATE UNIQUE INDEX uq_coupons_store_code ON coupons(store_id, code);
+CREATE INDEX idx_coupons_store_id ON coupons(store_id);
+
+-- Updated_at trigger
+CREATE TRIGGER trg_coupons_updated_at
+    BEFORE UPDATE ON coupons FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- ============================================================
 -- DONE

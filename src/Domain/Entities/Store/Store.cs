@@ -19,7 +19,6 @@ public sealed class Store
     public string? AddressAr { get; private set; }
     public decimal? Latitude { get; private set; }
     public decimal? Longitude { get; private set; }
-    public decimal Rating { get; private set; }
     public string? Metadata { get; private set; }
     public bool IsActive { get; private set; }
     public DateTime CreatedAt { get; private set; }

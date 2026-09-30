@@ -13,21 +13,8 @@ public record StoreDetailDto(
     decimal Rating,
     decimal? Latitude,
     decimal? Longitude,
-    bool IsFavorite)
-{
-    public static StoreDetailDto FromEntity(Domain.Entities.Store s, bool isFavorite, Language lang) => new(
-        s.Id,
-        lang.Localize(s.NameEn, s.NameAr),
-        lang.LocalizeNullable(s.DescriptionEn, s.DescriptionAr),
-        s.LogoUrl,
-        s.BannerUrl,
-        s.Phone,
-        s.Rating,
-        s.Latitude,
-        s.Longitude,
-        isFavorite);
-}
-
+    int ReviewCount,      
+    bool IsFavorite);
 public record StoreBannerDto(Guid Id, string ImageUrl, string? Title, string? ActionUrl);
 
 public record DiscountInfoDto(

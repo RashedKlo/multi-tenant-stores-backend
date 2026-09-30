@@ -28,12 +28,11 @@ public record FavoriteStoreDto(
     Guid StoreId,
     string Name,
     string? LogoUrl,
-    decimal Rating,
     DateTime FavoritedAt)
 {
     public static FavoriteStoreDto FromEntity(Domain.Entities.FavoriteStore f, Language lang)
     {
         var s = f.Store;
-        return new(s.Id, lang.Localize(s.NameEn, s.NameAr), s.LogoUrl, s.Rating, f.CreatedAt);
+        return new(s.Id, lang.Localize(s.NameEn, s.NameAr), s.LogoUrl, f.CreatedAt);
     }
 }

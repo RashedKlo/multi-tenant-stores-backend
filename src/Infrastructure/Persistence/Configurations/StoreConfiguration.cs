@@ -30,9 +30,7 @@ namespace Infrastructure.Persistence.Configurations
                     "ck_stores_longitude_range",
                     "longitude IS NULL OR (longitude BETWEEN -180 AND 180)");
 
-                table.HasCheckConstraint(
-                    "ck_stores_rating_range",
-                    "rating BETWEEN 0 AND 5");
+               
             });
 
             builder.HasKey(x => x.Id);
@@ -119,11 +117,7 @@ namespace Infrastructure.Persistence.Configurations
                 .HasColumnType("decimal(10,7)")
                 .IsRequired(false);
 
-            builder.Property(x => x.Rating)
-                .HasColumnName("rating")
-                .HasColumnType("decimal(2,1)")
-                .HasDefaultValue(0m)
-                .IsRequired();
+            
 
             builder.Property(x => x.Metadata)
                 .HasColumnName("metadata")
