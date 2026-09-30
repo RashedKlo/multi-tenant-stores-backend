@@ -25,7 +25,8 @@ public class SupportConversationHandlerTests
         user.IsAuthenticated.Returns(true);
         user.CustomerId.Returns(customerId);
 
-        var handler = new StartConversationHandler(conversations, user);
+        var messages = Substitute.For<ISupportMessageRepository>();
+        var handler = new StartConversationHandler( conversations,messages, user);
 
         var result = await handler.Handle(new StartConversationCommand(tenantId), CancellationToken.None);
 
