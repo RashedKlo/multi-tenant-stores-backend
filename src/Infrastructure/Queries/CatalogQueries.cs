@@ -91,6 +91,44 @@ public sealed class CatalogQueries : ICatalogQueries
             r.ActionUrl)).ToList();
     }
 
+    public async Task<IReadOnlyList<StoreCouponDto>> GetStoreCouponsAsync(
+        Guid storeId,
+        CancellationToken ct = default)
+    {
+        const string sql = """
+            SELECT
+                id,
+                code,
+                discount_type,
+                discount_value,
+                max_discount_amount,
+                min_order_amount,
+                starts_at,
+                expires_at
+            FROM coupons
+            WHERE store_id = @StoreId
+              AND is_active = true
+              AND starts_at <= NOW()
+              AND (expires_at IS NULL OR expires_at >= NOW())
+              AND (usage_limit_total IS NULL OR used_count < usage_limit_total)
+            ORDER BY starts_at DESC, id
+            """;
+
+        await using var conn = (System.Data.Common.DbConnection)_connectionFactory.CreateConnection();
+        var rows = await conn.QueryAsync<StoreCouponRow>(
+            new CommandDefinition(sql, new { StoreId = storeId }, cancellationToken: ct));
+
+        return rows.Select(row => new StoreCouponDto(
+            row.Id,
+            row.Code,
+            row.DiscountType,
+            row.DiscountValue,
+            row.MaxDiscountAmount,
+            row.MinOrderAmount,
+            row.StartsAt,
+            row.ExpiresAt)).ToList();
+    }
+
     public async Task<PagedResult<StoreSectionDto>> GetStoreSectionsAsync(
         Guid storeId,
         bool discountedOnly,
@@ -936,6 +974,18 @@ public sealed class CatalogQueries : ICatalogQueries
         public string? TitleEn { get; init; }
         public string? TitleAr { get; init; }
         public string? ActionUrl { get; init; }
+    }
+
+    private sealed class StoreCouponRow
+    {
+        public Guid Id { get; init; }
+        public string Code { get; init; } = null!;
+        public short DiscountType { get; init; }
+        public decimal DiscountValue { get; init; }
+        public decimal? MaxDiscountAmount { get; init; }
+        public decimal MinOrderAmount { get; init; }
+        public DateTime StartsAt { get; init; }
+        public DateTime? ExpiresAt { get; init; }
     }
 
     private sealed class StoreSectionRow
