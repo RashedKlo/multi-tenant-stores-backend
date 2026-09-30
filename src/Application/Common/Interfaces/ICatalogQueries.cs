@@ -18,6 +18,7 @@ public interface ICatalogQueries
 
     Task<PagedResult<StoreSectionDto>> GetStoreSectionsAsync(
         Guid storeId,
+        bool discountedOnly,
         int page,
         int pageSize,
         Language lang,
@@ -28,6 +29,13 @@ public interface ICatalogQueries
         bool? inStockOnly,
         decimal? minPrice,
         decimal? maxPrice,
+        int page,
+        int pageSize,
+        Language lang,
+        CancellationToken ct = default);
+
+    Task<PagedResult<ProductSummaryDto>> GetDiscountedProductsAsync(
+        Guid storeId,
         int page,
         int pageSize,
         Language lang,

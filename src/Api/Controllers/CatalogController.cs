@@ -1,4 +1,6 @@
 using Application.Catalog.DTOs;
+using Application.Catalog.Queries.GetDiscountedProducts;
+using Application.Catalog.Queries.GetDiscountedSections;
 using Application.Catalog.Queries.GetProductById;
 using Application.Catalog.Queries.GetProductsBySection;
 using Application.Catalog.Queries.GetStoreBanners;
@@ -53,6 +55,19 @@ public class CatalogController(IMediator mediator) : ApiControllerBase
         => HandleResult(await mediator.Send(
             new GetStoreSectionsQuery(id, request.Page, request.PageSize), ct));
 
+    /// <summary>
+    /// Returns only the sections of a store that currently have an active discount.
+    /// </summary>
+    [HttpGet("stores/{id:guid}/discounted-sections")]
+    [ProducesResponseType(typeof(PagedResult<StoreSectionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PagedResult<StoreSectionDto>>> GetDiscountedSections(
+        [FromRoute] Guid id,
+        [FromQuery] GetStoreSectionsRequest request,
+        CancellationToken ct = default)
+        => HandleResult(await mediator.Send(
+            new GetDiscountedSectionsQuery(id, request.Page, request.PageSize), ct));
+
     // -------------------- Section / Products --------------------
 
     /// <summary>
@@ -74,6 +89,20 @@ public class CatalogController(IMediator mediator) : ApiControllerBase
                 request.MaxPrice,
                 request.Page,
                 request.PageSize), ct));
+
+    /// <summary>
+    /// Returns every product in a store that currently has an active discount,
+    /// ordered by largest discount first.
+    /// </summary>
+    [HttpGet("stores/{id:guid}/discounted-products")]
+    [ProducesResponseType(typeof(PagedResult<ProductSummaryDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PagedResult<ProductSummaryDto>>> GetDiscountedProducts(
+        [FromRoute] Guid id,
+        [FromQuery] GetStoreSectionsRequest request,
+        CancellationToken ct = default)
+        => HandleResult(await mediator.Send(
+            new GetDiscountedProductsQuery(id, request.Page, request.PageSize), ct));
 
     // -------------------- Product --------------------
 
