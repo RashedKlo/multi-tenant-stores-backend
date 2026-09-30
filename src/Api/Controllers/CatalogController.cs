@@ -5,6 +5,7 @@ using Application.Catalog.Queries.GetProductById;
 using Application.Catalog.Queries.GetProductsBySection;
 using Application.Catalog.Queries.GetStoreBanners;
 using Application.Catalog.Queries.GetStoreById;
+using Application.Catalog.Queries.GetStoreCoupons;
 using Application.Catalog.Queries.GetStoreSections;
 using Application.Common.Models;
 using Api.Requests.Catalog;
@@ -41,6 +42,16 @@ public class CatalogController(IMediator mediator) : ApiControllerBase
         [FromRoute] GetStoreBannersRequest request,
         CancellationToken ct)
         => HandleResult(await mediator.Send(new GetStoreBannersQuery(request.Id), ct));
+
+    /// <summary>
+    /// Returns the currently active coupons of a store.
+    /// </summary>
+    [HttpGet("stores/{id:guid}/coupons")]
+    [ProducesResponseType(typeof(IReadOnlyList<StoreCouponDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<StoreCouponDto>>> GetStoreCoupons(
+        [FromRoute] Guid id,
+        CancellationToken ct = default)
+        => HandleResult(await mediator.Send(new GetStoreCouponsQuery(id), ct));
 
     /// <summary>
     /// Returns a paged list of sections belonging to a store.
