@@ -111,82 +111,102 @@ public sealed class DiscoveryQueries : IDiscoveryQueries
                 c.ImageUrl)).ToList());
     }
 
-    public async Task<PagedResult<StoreSummaryDto>> GetStoresByModuleAsync(
-        Guid? customerId,
-        Guid moduleId,
-        Guid? categoryId,
-        string? search,
-        int page,
-        int pageSize,
-        Language lang,
-        CancellationToken ct = default)
-    {
-        var filters = new List<string>
-        {
-            "s.module_id = @ModuleId",
-            "s.is_active = true",
-            "s.deleted_at IS NULL"
-        };
-
-        if (categoryId.HasValue)
-            filters.Add("""
-                EXISTS (
-                    SELECT 1 FROM store_categories sc
-                    WHERE sc.store_id = s.id AND sc.category_id = @CategoryId
-                )
-                """);
-
-        if (!string.IsNullOrWhiteSpace(search))
-            filters.Add("(s.name_en ILIKE @Search OR s.name_ar ILIKE @Search)");
-
-        var where = string.Join(" AND ", filters);
-
-        var countSql = $"""SELECT COUNT(*) FROM stores s WHERE {where}""";
-
-        var dataSql = $"""
-            SELECT s.id, s.name_en, s.name_ar, s.logo_url, s.rating,EXISTS (
-                    SELECT 1 FROM favorite_stores fs
-                    WHERE fs.store_id = s.id
-                      AND fs.customer_id = @CustomerId
-                ) AS is_favorite
-            FROM stores s
-            WHERE {where}
-            ORDER BY s.rating DESC, s.name_en
-            OFFSET @Offset LIMIT @PageSize
-            """;
-
-        await using var conn = (System.Data.Common.DbConnection)_connectionFactory.CreateConnection();
-
-        var param = new
-        {
-            ModuleId = moduleId,
-            CategoryId = categoryId,
-            CustomerId = customerId,
-            Search = string.IsNullOrWhiteSpace(search) ? null : $"%{search.Trim()}%",
-            Offset = (page - 1) * pageSize,
-            PageSize = pageSize
-        };
-
-        var total = await conn.ExecuteScalarAsync<int>(
-            new CommandDefinition(countSql, param, cancellationToken: ct));
-
-        var rows = await conn.QueryAsync<StoreSummaryRow>(
-            new CommandDefinition(dataSql, param, cancellationToken: ct));
-
-        var items = rows.Select(r => new StoreSummaryDto(
-            r.Id,
-            lang.Localize(r.NameEn, r.NameAr),
-            r.LogoUrl,
-            r.Rating,
-            r.IsFavorite)).ToList();
-
-        return PagedResult<StoreSummaryDto>.Create(items, page, pageSize, total);
-    }
-public async Task<PagedResult<NearbyStoreDto>> GetNearbyStoresAsync(
-    decimal lat, decimal lng, int radiusKm, int page, int pageSize,
-     Language lang, CancellationToken ct = default)
+  public async Task<PagedResult<StoreSummaryDto>> GetStoresByModuleAsync(
+    Guid? customerId,
+    Guid moduleId,
+    Guid? categoryId,
+    string? search,
+    int page,
+    int pageSize,
+    Language lang,
+    CancellationToken ct = default)
 {
-    // Haversine, in km. 6371 = Earth radius.
+    var filters = new List<string>
+    {
+        "s.module_id = @ModuleId",
+        "s.is_active = true",
+        "s.deleted_at IS NULL"
+    };
+
+    if (categoryId.HasValue)
+        filters.Add("""
+            EXISTS (
+                SELECT 1 FROM store_categories sc
+                WHERE sc.store_id = s.id AND sc.category_id = @CategoryId
+            )
+            """);
+
+    if (!string.IsNullOrWhiteSpace(search))
+        filters.Add("(s.name_en ILIKE @Search OR s.name_ar ILIKE @Search)");
+
+    var where = string.Join(" AND ", filters);
+
+    var countSql = $"""
+        SELECT COUNT(*) 
+        FROM stores s 
+        WHERE {where}
+        """;
+
+    var dataSql = $"""
+        SELECT
+            s.id,
+            s.name_en,
+            s.name_ar,
+            s.logo_url,
+            COALESCE(ROUND(AVG(r.rating)::numeric, 1), 0) AS rating_avg,
+            COUNT(r.id) AS review_count,
+            EXISTS (
+                SELECT 1 
+                FROM favorite_stores fs 
+                WHERE fs.store_id = s.id 
+                  AND fs.customer_id = @CustomerId
+            ) AS is_favorite
+        FROM stores s
+        LEFT JOIN store_reviews r ON r.store_id = s.id
+        WHERE {where}
+        GROUP BY s.id
+        ORDER BY rating_avg DESC, s.name_en
+        OFFSET @Offset LIMIT @PageSize
+    """;
+
+    await using var conn = (System.Data.Common.DbConnection)_connectionFactory.CreateConnection();
+
+    var param = new
+    {
+        ModuleId = moduleId,
+        CategoryId = categoryId,
+        CustomerId = customerId,
+        Search = string.IsNullOrWhiteSpace(search) ? null : $"%{search.Trim()}%",
+        Offset = (page - 1) * pageSize,
+        PageSize = pageSize
+    };
+
+    var total = await conn.ExecuteScalarAsync<int>(
+        new CommandDefinition(countSql, param, cancellationToken: ct));
+
+    var rows = await conn.QueryAsync<StoreSummaryRow>(
+        new CommandDefinition(dataSql, param, cancellationToken: ct));
+
+    var items = rows.Select(r => new StoreSummaryDto(
+        r.Id,
+        lang.Localize(r.NameEn, r.NameAr),
+        r.LogoUrl,
+        r.RatingAvg,
+        r.ReviewCount,
+        r.IsFavorite)).ToList();
+
+    return PagedResult<StoreSummaryDto>.Create(items, page, pageSize, total);
+}
+public async Task<PagedResult<NearbyStoreDto>> GetNearbyStoresAsync(
+    decimal lat,
+    decimal lng,
+    int radiusKm,
+    int page,
+    int pageSize,
+    Language lang,
+    CancellationToken ct = default)
+{
+    // Haversine formula (6371 = Earth radius in km)
     const string distanceExpr = """
         6371 * acos(
             cos(radians(@Lat)) * cos(radians(s.latitude)) *
@@ -196,34 +216,63 @@ public async Task<PagedResult<NearbyStoreDto>> GetNearbyStoresAsync(
         """;
 
     var where = $"""
-        s.is_active = true AND s.deleted_at IS NULL
-        AND s.latitude IS NOT NULL AND s.longitude IS NOT NULL
+        s.is_active = true
+        AND s.deleted_at IS NULL
+        AND s.latitude IS NOT NULL
+        AND s.longitude IS NOT NULL
         AND ({distanceExpr}) <= @RadiusKm
         """;
 
-    var countSql = $"SELECT COUNT(*) FROM stores s WHERE {where}";
-
-    var dataSql = $"""
-        SELECT s.id, s.name_en, s.name_ar, s.logo_url, s.rating,
-               ({distanceExpr}) AS distance_km
-        FROM stores s
+    var countSql = $"""
+        SELECT COUNT(*) 
+        FROM stores s 
         WHERE {where}
-        ORDER BY distance_km
-        OFFSET @Offset LIMIT @PageSize
         """;
 
-    await using var conn = (System.Data.Common.DbConnection)_connectionFactory.CreateConnection();
-    var param = new { Lat = lat, Lng = lng, RadiusKm = radiusKm, Offset = (page - 1) * pageSize, PageSize = pageSize };
+    var dataSql = $"""
+        SELECT
+            s.id,
+            s.name_en,
+            s.name_ar,
+            s.logo_url,
+            COALESCE(ROUND(AVG(r.rating)::numeric, 1), 0) AS rating_avg,
+            COUNT(r.id) AS review_count,
+            ({distanceExpr}) AS distance_km
+        FROM stores s
+        LEFT JOIN store_reviews r ON r.store_id = s.id
+        WHERE {where}
+        GROUP BY s.id
+        ORDER BY distance_km
+        OFFSET @Offset LIMIT @PageSize
+    """;
 
-    var total = await conn.ExecuteScalarAsync<int>(new CommandDefinition(countSql, param, cancellationToken: ct));
-    var rows = await conn.QueryAsync<NearbyStoreRow>(new CommandDefinition(dataSql, param, cancellationToken: ct));
+    await using var conn = (System.Data.Common.DbConnection)_connectionFactory.CreateConnection();
+
+    var param = new
+    {
+        Lat = lat,
+        Lng = lng,
+        RadiusKm = radiusKm,
+        Offset = (page - 1) * pageSize,
+        PageSize = pageSize
+    };
+
+    var total = await conn.ExecuteScalarAsync<int>(
+        new CommandDefinition(countSql, param, cancellationToken: ct));
+
+    var rows = await conn.QueryAsync<NearbyStoreRow>(
+        new CommandDefinition(dataSql, param, cancellationToken: ct));
 
     var items = rows.Select(r => new NearbyStoreDto(
-        r.Id, lang.Localize(r.NameEn, r.NameAr), r.LogoUrl, r.Rating, r.DistanceKm)).ToList();
+        r.Id,
+        lang.Localize(r.NameEn, r.NameAr),
+        r.LogoUrl,
+        r.RatingAvg,
+        r.ReviewCount,
+        r.DistanceKm)).ToList();
 
     return PagedResult<NearbyStoreDto>.Create(items, page, pageSize, total);
 }
-
     public async Task<PagedResult<NewStoreDto>> GetNewStoresAsync(
         int page, int pageSize, Language lang, CancellationToken ct = default)
     {
@@ -253,7 +302,7 @@ public async Task<PagedResult<NearbyStoreDto>> GetNearbyStoresAsync(
         return PagedResult<NewStoreDto>.Create(items, page, pageSize, total);
     }
 
-    public async Task<PagedResult<DiscountedStoreDto>> GetDiscountedStoresAsync(
+   public async Task<PagedResult<DiscountedStoreDto>> GetDiscountedStoresAsync(
     int page,
     int pageSize,
     Language lang,
@@ -270,29 +319,33 @@ public async Task<PagedResult<NearbyStoreDto>> GetNearbyStoresAsync(
     var countSql = $"""
         SELECT COUNT(DISTINCT s.id)
         FROM stores s
+        LEFT JOIN store_reviews r ON r.store_id = s.id
         JOIN discounts d ON d.store_id = s.id
         WHERE {whereClause}
         """;
 
     var dataSql = $"""
-        SELECT s.id,
-               s.name_en,
-               s.name_ar,
-               s.logo_url,
-               s.rating,
-               MAX(
-                   CASE 
-                       WHEN d.type = 'Percentage' THEN d.value 
-                       ELSE 0 
-                   END
-               ) AS max_percentage_off
+        SELECT
+            s.id,
+            s.name_en,
+            s.name_ar,
+            s.logo_url,
+            COALESCE(ROUND(AVG(r.rating)::numeric, 1), 0) AS rating_avg,
+            COUNT(r.id) AS review_count,
+            MAX(
+                CASE 
+                    WHEN d.type = 'Percentage' THEN d.value 
+                    ELSE 0 
+                END
+            ) AS max_percentage_off
         FROM stores s
+        LEFT JOIN store_reviews r ON r.store_id = s.id
         JOIN discounts d ON d.store_id = s.id
         WHERE {whereClause}
         GROUP BY s.id
-        ORDER BY max_percentage_off DESC NULLS LAST, s.rating DESC
+        ORDER BY max_percentage_off DESC NULLS LAST, rating_avg DESC
         OFFSET @Offset LIMIT @PageSize
-        """;
+    """;
 
     await using var connection = (System.Data.Common.DbConnection)_connectionFactory.CreateConnection();
     var parameters = new { Offset = (page - 1) * pageSize, PageSize = pageSize };
@@ -307,12 +360,12 @@ public async Task<PagedResult<NearbyStoreDto>> GetNearbyStoresAsync(
         r.Id,
         lang.Localize(r.NameEn, r.NameAr),
         r.LogoUrl,
-        r.Rating,
+        r.RatingAvg,
+        r.ReviewCount,
         r.MaxPercentageOff)).ToList();
 
     return PagedResult<DiscountedStoreDto>.Create(items, page, pageSize, total);
-}
-    private sealed class HomeBannerRow
+}    private sealed class HomeBannerRow
     {
         public Guid Id { get; init; }
         public string ImageUrl { get; init; } = default!;
@@ -348,15 +401,16 @@ public async Task<PagedResult<NearbyStoreDto>> GetNearbyStoresAsync(
         public string? ImageUrl { get; init; }
     }
 
-    private sealed class StoreSummaryRow
-    {
-        public Guid Id { get; init; }
-        public string NameEn { get; init; } = default!;
-        public string NameAr { get; init; } = default!;
-        public string? LogoUrl { get; init; }
-        public decimal Rating { get; init; }
-        public bool IsFavorite { get; init; }
-    }
+private sealed class StoreSummaryRow
+{
+    public Guid Id { get; init; }
+    public string NameEn { get; init; } = default!;
+    public string NameAr { get; init; } = default!;
+    public string? LogoUrl { get; init; }
+    public decimal RatingAvg { get; init; }     
+    public int ReviewCount { get; init; }       
+    public bool IsFavorite { get; init; }
+}
        private sealed class NewStoreRow
     {
         public Guid Id { get; init; }
@@ -365,24 +419,24 @@ public async Task<PagedResult<NearbyStoreDto>> GetNearbyStoresAsync(
         public string? LogoUrl { get; init; }
    
     }
-
-    private sealed class NearbyStoreRow
-    {
-        public Guid Id { get; init; }
-        public string NameEn { get; init; } = default!;
-        public string NameAr { get; init; } = default!;
-        public string? LogoUrl { get; init; }
-        public decimal Rating { get; init; }
-        public double DistanceKm { get; init; }
-    }
-
-    private sealed class DiscountedStoreRow
-    {
-        public Guid Id { get; init; }
-        public string NameEn { get; init; } = default!;
-        public string NameAr { get; init; } = default!;
-        public string? LogoUrl { get; init; }
-        public decimal Rating { get; init; }
-        public decimal? MaxPercentageOff { get; init; }
-    }
+private sealed class NearbyStoreRow
+{
+    public Guid Id { get; init; }
+    public string NameEn { get; init; } = default!;
+    public string NameAr { get; init; } = default!;
+    public string? LogoUrl { get; init; }
+    public decimal RatingAvg { get; init; }      // NEW: from AVG
+    public int ReviewCount { get; init; }        // NEW: from COUNT
+    public double DistanceKm { get; init; }
+}
+private sealed class DiscountedStoreRow
+{
+    public Guid Id { get; init; }
+    public string NameEn { get; init; } = default!;
+    public string NameAr { get; init; } = default!;
+    public string? LogoUrl { get; init; }
+    public decimal RatingAvg { get; init; }      // NEW: from AVG
+    public int ReviewCount { get; init; }        // NEW: from COUNT
+    public decimal? MaxPercentageOff { get; init; }
+}
 }

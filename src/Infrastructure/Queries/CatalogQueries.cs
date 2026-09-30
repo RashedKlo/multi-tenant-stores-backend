@@ -14,54 +14,59 @@ public sealed class CatalogQueries : ICatalogQueries
     public CatalogQueries(IDbConnectionFactory connectionFactory)
         => _connectionFactory = connectionFactory;
 
-    public async Task<StoreDetailDto?> GetStoreByIdAsync(
-        Guid storeId,
-        Guid? customerId,
-        Language lang,
-        CancellationToken ct = default)
-    {
-        const string sql = """
-            SELECT
-                s.id,
-                s.name_en,
-                s.name_ar,
-                s.description_en,
-                s.description_ar,
-                s.logo_url,
-                s.banner_url,
-                s.phone,
-                s.rating,
-                s.latitude,
-                s.longitude,
-                EXISTS (
-                    SELECT 1 FROM favorite_stores fs
-                    WHERE fs.store_id = s.id
-                      AND fs.customer_id = @CustomerId
-                ) AS is_favorite
-            FROM stores s
-            WHERE s.id = @StoreId
-              AND s.is_active = true
-              AND s.deleted_at IS NULL
-            """;
+  public async Task<StoreDetailDto?> GetStoreByIdAsync(
+    Guid storeId,
+    Guid? customerId,
+    Language lang,
+    CancellationToken ct = default)
+{
+    const string sql = """
+        SELECT
+            s.id,
+            s.name_en,
+            s.name_ar,
+            s.description_en,
+            s.description_ar,
+            s.logo_url,
+            s.banner_url,
+            s.phone,
+            s.latitude,
+            s.longitude,
+            COALESCE(ROUND(AVG(r.rating)::numeric, 1), 0) AS rating_avg,
+            COUNT(r.id) AS review_count,
+            EXISTS (
+                SELECT 1 
+                FROM favorite_stores fs 
+                WHERE fs.store_id = s.id 
+                  AND fs.customer_id = @CustomerId
+            ) AS is_favorite
+        FROM stores s
+        LEFT JOIN store_reviews r ON r.store_id = s.id
+        WHERE s.id = @StoreId
+          AND s.is_active = true
+          AND s.deleted_at IS NULL
+        GROUP BY s.id
+    """;
 
-        await using var conn = (System.Data.Common.DbConnection)_connectionFactory.CreateConnection();
-        var row = await conn.QuerySingleOrDefaultAsync<StoreRow>(
-            new CommandDefinition(sql, new { StoreId = storeId, CustomerId = customerId }, cancellationToken: ct));
+    await using var conn = (System.Data.Common.DbConnection)_connectionFactory.CreateConnection();
+    var row = await conn.QuerySingleOrDefaultAsync<StoreRow>(
+        new CommandDefinition(sql, new { StoreId = storeId, CustomerId = customerId }, cancellationToken: ct));
 
-        if (row is null) return null;
+    if (row is null) return null;
 
-        return new StoreDetailDto(
-            row.Id,
-            lang.Localize(row.NameEn, row.NameAr),
-            lang.LocalizeNullable(row.DescriptionEn, row.DescriptionAr),
-            row.LogoUrl,
-            row.BannerUrl,
-            row.Phone,
-            row.Rating,
-            row.Latitude,
-            row.Longitude,
-            row.IsFavorite);
-    }
+    return new StoreDetailDto(
+        row.Id,
+        lang.Localize(row.NameEn, row.NameAr),
+        lang.LocalizeNullable(row.DescriptionEn, row.DescriptionAr),
+        row.LogoUrl,
+        row.BannerUrl,
+        row.Phone,
+        row.RatingAvg,
+        row.Latitude,
+        row.Longitude,
+        row.ReviewCount,
+        row.IsFavorite);
+}
 
     public async Task<IReadOnlyList<StoreBannerDto>> GetStoreBannersAsync(
         Guid storeId,
@@ -906,22 +911,23 @@ public sealed class CatalogQueries : ICatalogQueries
             images.Select(i => new ProductImageDto(i.Id, i.ImageUrl)).ToList(),
             optionGroups);
     }
+      private sealed class StoreRow
+{
+    public Guid Id { get; init; }
+    public string NameEn { get; init; } = default!;
+    public string NameAr { get; init; } = default!;
+    public string? DescriptionEn { get; init; }
+    public string? DescriptionAr { get; init; }
+    public string? LogoUrl { get; init; }
+    public string? BannerUrl { get; init; }
+    public string? Phone { get; init; }
+    public decimal Latitude { get; init; }
+    public decimal Longitude { get; init; }
+    public decimal RatingAvg { get; init; }      // NEW: from AVG
+    public int ReviewCount { get; init; }        // NEW: from COUNT
+    public bool IsFavorite { get; init; }
+}
 
-    private sealed class StoreRow
-    {
-        public Guid Id { get; init; }
-        public string NameEn { get; init; } = default!;
-        public string NameAr { get; init; } = default!;
-        public string? DescriptionEn { get; init; }
-        public string? DescriptionAr { get; init; }
-        public string? LogoUrl { get; init; }
-        public string? BannerUrl { get; init; }
-        public string? Phone { get; init; }
-        public decimal Rating { get; init; }
-        public decimal? Latitude { get; init; }
-        public decimal? Longitude { get; init; }
-        public bool IsFavorite { get; init; }
-    }
 
     private sealed class StoreBannerRow
     {
