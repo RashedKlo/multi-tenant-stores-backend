@@ -88,41 +88,69 @@ public sealed class CatalogQueries : ICatalogQueries
 
     public async Task<PagedResult<StoreSectionDto>> GetStoreSectionsAsync(
         Guid storeId,
+        bool discountedOnly,
         int page,
         int pageSize,
         Language lang,
         CancellationToken ct = default)
     {
-        const string countSql = """
-            SELECT COUNT(*) FROM store_sections
-            WHERE store_id = @StoreId AND is_active = true
+        var countSql = """
+            SELECT COUNT(*)
+            FROM store_sections s
+            WHERE s.store_id = @StoreId AND s.is_active = true
             """;
 
-        const string dataSql = """
-            SELECT id, name_en, name_ar, image_url
-            FROM store_sections
-            WHERE store_id = @StoreId AND is_active = true
-            ORDER BY display_order, id
+        var dataSql = $"""
+            SELECT
+                s.id,
+                s.name_en,
+                s.name_ar,
+                s.image_url,
+                sd.discount_type,
+                sd.discount_value,
+                sd.discount_ends_at
+            FROM store_sections s
+            LEFT JOIN LATERAL (
+            SELECT d.type::text AS discount_type,
+                   d.value      AS discount_value,
+                   d.end_date   AS discount_ends_at
+            FROM discount_sections ds
+            JOIN discounts d ON d.id = ds.discount_id
+            WHERE ds.section_id = s.id
+              AND d.store_id = s.store_id
+              AND d.is_active = true
+              AND (d.start_date IS NULL OR d.start_date <= NOW())
+              AND (d.end_date IS NULL OR d.end_date >= NOW())
+            ORDER BY (d.type = 'Percentage') DESC, d.value DESC, d.id
+            LIMIT 1
+             ) sd ON true
+            WHERE s.store_id = @StoreId
+              AND s.is_active = true
+              {(discountedOnly ? "AND sd.discount_type IS NOT NULL" : string.Empty)}
+            ORDER BY s.display_order, s.id
             OFFSET @Offset LIMIT @PageSize
             """;
 
         await using var conn = (System.Data.Common.DbConnection)_connectionFactory.CreateConnection();
 
+        var parameters = new
+        {
+            StoreId = storeId,
+            Offset = (page - 1) * pageSize,
+            PageSize = pageSize
+        };
+
         var total = await conn.ExecuteScalarAsync<int>(
-            new CommandDefinition(countSql, new { StoreId = storeId }, cancellationToken: ct));
+            new CommandDefinition(countSql, parameters, cancellationToken: ct));
 
         var rows = await conn.QueryAsync<StoreSectionRow>(
-            new CommandDefinition(dataSql, new
-            {
-                StoreId = storeId,
-                Offset = (page - 1) * pageSize,
-                PageSize = pageSize
-            }, cancellationToken: ct));
+            new CommandDefinition(dataSql, parameters, cancellationToken: ct));
 
         var items = rows.Select(r => new StoreSectionDto(
             r.Id,
             lang.Localize(r.NameEn, r.NameAr),
-            r.ImageUrl)).ToList();
+            r.ImageUrl,
+            r.DiscountType is null ? null : new DiscountInfoDto(r.DiscountType, r.DiscountValue ?? 0m, r.DiscountEndsAt, "Section"))).ToList();
 
         return PagedResult<StoreSectionDto>.Create(items, page, pageSize, total);
     }
@@ -165,9 +193,154 @@ public sealed class CatalogQueries : ICatalogQueries
                 p.name_en,
                 p.name_ar,
                 p.price,
+                (
+                    SELECT CASE
+                        WHEN d.type = 'Percentage' THEN ROUND(p.price - p.price * d.value / 100, 2)
+                        ELSE GREATEST(p.price - d.value, 0)
+                    END
+                    FROM discounts d
+                    WHERE d.store_id = sec.store_id
+                      AND d.is_active = true
+                      AND (d.start_date IS NULL OR d.start_date <= NOW())
+                      AND (d.end_date IS NULL OR d.end_date >= NOW())
+                      AND (
+                            EXISTS (
+                                SELECT 1
+                                FROM discount_products dp
+                                WHERE dp.discount_id = d.id
+                                  AND dp.product_id = p.id
+                            )
+                         OR EXISTS (
+                                SELECT 1
+                                FROM discount_sections ds
+                                WHERE ds.discount_id = d.id
+                                  AND ds.section_id = p.section_id
+                            )
+                      )
+                    ORDER BY CASE
+                        WHEN d.type = 'Percentage' THEN ROUND(p.price - p.price * d.value / 100, 2)
+                        ELSE GREATEST(p.price - d.value, 0)
+                    END ASC, d.id
+                    LIMIT 1
+                ) AS final_price,
                 p.compare_price,
                 p.track_inventory,
                 p.stock_quantity,
+                (
+                    SELECT d.type::text
+                    FROM discounts d
+                    WHERE d.store_id = sec.store_id
+                      AND d.is_active = true
+                      AND (d.start_date IS NULL OR d.start_date <= NOW())
+                      AND (d.end_date IS NULL OR d.end_date >= NOW())
+                      AND (
+                            EXISTS (
+                                SELECT 1
+                                FROM discount_products dp
+                                WHERE dp.discount_id = d.id
+                                  AND dp.product_id = p.id
+                            )
+                         OR EXISTS (
+                                SELECT 1
+                                FROM discount_sections ds
+                                WHERE ds.discount_id = d.id
+                                  AND ds.section_id = p.section_id
+                            )
+                      )
+                    ORDER BY CASE
+                        WHEN d.type = 'Percentage' THEN ROUND(p.price - p.price * d.value / 100, 2)
+                        ELSE GREATEST(p.price - d.value, 0)
+                    END ASC, d.id
+                    LIMIT 1
+                ) AS discount_type,
+                (
+                    SELECT d.value
+                    FROM discounts d
+                    WHERE d.store_id = sec.store_id
+                      AND d.is_active = true
+                      AND (d.start_date IS NULL OR d.start_date <= NOW())
+                      AND (d.end_date IS NULL OR d.end_date >= NOW())
+                      AND (
+                            EXISTS (
+                                SELECT 1
+                                FROM discount_products dp
+                                WHERE dp.discount_id = d.id
+                                  AND dp.product_id = p.id
+                            )
+                         OR EXISTS (
+                                SELECT 1
+                                FROM discount_sections ds
+                                WHERE ds.discount_id = d.id
+                                  AND ds.section_id = p.section_id
+                            )
+                      )
+                    ORDER BY CASE
+                        WHEN d.type = 'Percentage' THEN ROUND(p.price - p.price * d.value / 100, 2)
+                        ELSE GREATEST(p.price - d.value, 0)
+                    END ASC, d.id
+                    LIMIT 1
+                ) AS discount_value,
+                (
+                    SELECT d.end_date
+                    FROM discounts d
+                    WHERE d.store_id = sec.store_id
+                      AND d.is_active = true
+                      AND (d.start_date IS NULL OR d.start_date <= NOW())
+                      AND (d.end_date IS NULL OR d.end_date >= NOW())
+                      AND (
+                            EXISTS (
+                                SELECT 1
+                                FROM discount_products dp
+                                WHERE dp.discount_id = d.id
+                                  AND dp.product_id = p.id
+                            )
+                         OR EXISTS (
+                                SELECT 1
+                                FROM discount_sections ds
+                                WHERE ds.discount_id = d.id
+                                  AND ds.section_id = p.section_id
+                            )
+                      )
+                    ORDER BY CASE
+                        WHEN d.type = 'Percentage' THEN ROUND(p.price - p.price * d.value / 100, 2)
+                        ELSE GREATEST(p.price - d.value, 0)
+                    END ASC, d.id
+                    LIMIT 1
+                ) AS discount_ends_at,
+                (
+                    SELECT CASE
+                        WHEN EXISTS (
+                            SELECT 1 FROM discount_products dp
+                            WHERE dp.discount_id = d.id
+                              AND dp.product_id = p.id
+                        ) THEN 'Product'
+                        ELSE 'Section'
+                    END
+                    FROM discounts d
+                    WHERE d.store_id = sec.store_id
+                      AND d.is_active = true
+                      AND (d.start_date IS NULL OR d.start_date <= NOW())
+                      AND (d.end_date IS NULL OR d.end_date >= NOW())
+                      AND (
+                            EXISTS (
+                                SELECT 1
+                                FROM discount_products dp
+                                WHERE dp.discount_id = d.id
+                                  AND dp.product_id = p.id
+                            )
+                         OR EXISTS (
+                                SELECT 1
+                                FROM discount_sections ds
+                                WHERE ds.discount_id = d.id
+                                  AND ds.section_id = p.section_id
+                            )
+                      )
+                    ORDER BY CASE
+                        WHEN d.type = 'Percentage' THEN ROUND(p.price - p.price * d.value / 100, 2)
+                        ELSE GREATEST(p.price - d.value, 0)
+                    END ASC, d.id
+                    LIMIT 1
+                ) AS discount_source,
                 (
                     SELECT pi.image_url
                     FROM product_images pi
@@ -176,6 +349,7 @@ public sealed class CatalogQueries : ICatalogQueries
                     LIMIT 1
                 ) AS thumbnail_url
             FROM products p
+            LEFT JOIN store_sections sec ON sec.id = p.section_id
             WHERE {where}
             ORDER BY p.created_at DESC
             OFFSET @Offset LIMIT @PageSize
@@ -203,8 +377,272 @@ public sealed class CatalogQueries : ICatalogQueries
             lang.Localize(r.NameEn, r.NameAr),
             r.ThumbnailUrl,
             r.Price,
+            r.FinalPrice,
             r.ComparePrice,
-            InStock: !r.TrackInventory || r.StockQuantity > 0)).ToList();
+            InStock: !r.TrackInventory || r.StockQuantity > 0,
+            r.DiscountType is null ? null : new DiscountInfoDto(r.DiscountType, r.DiscountValue ?? 0m, r.DiscountEndsAt, r.DiscountSource ?? "Section"))).ToList();
+
+        return PagedResult<ProductSummaryDto>.Create(items, page, pageSize, total);
+    }
+
+    public async Task<PagedResult<ProductSummaryDto>> GetDiscountedProductsAsync(
+        Guid storeId,
+        int page,
+        int pageSize,
+        Language lang,
+        CancellationToken ct = default)
+    {
+        const string whereClause = """
+            p.store_id = @StoreId
+            AND p.is_active = true
+            AND p.deleted_at IS NULL
+            AND (
+                EXISTS (
+                    SELECT 1
+                    FROM discount_products dp
+                    JOIN discounts d ON d.id = dp.discount_id
+                    WHERE dp.product_id = p.id
+                      AND d.is_active = true
+                      AND (d.start_date IS NULL OR d.start_date <= NOW())
+                      AND (d.end_date IS NULL OR d.end_date >= NOW())
+                )
+                OR EXISTS (
+                    SELECT 1
+                    FROM discount_sections ds
+                    JOIN discounts d ON d.id = ds.discount_id
+                    WHERE ds.section_id = p.section_id
+                      AND d.is_active = true
+                      AND (d.start_date IS NULL OR d.start_date <= NOW())
+                      AND (d.end_date IS NULL OR d.end_date >= NOW())
+                )
+            )
+            """;
+
+        var countSql = $"SELECT COUNT(*) FROM products p WHERE {whereClause}";
+
+        var dataSql = $"""
+            SELECT
+                p.id,
+                p.name_en,
+                p.name_ar,
+                p.price,
+                (
+                    SELECT CASE
+                        WHEN d.type = 'Percentage' THEN ROUND(p.price - p.price * d.value / 100, 2)
+                        ELSE GREATEST(p.price - d.value, 0)
+                    END
+                    FROM discounts d
+                    WHERE d.store_id = sec.store_id
+                      AND d.is_active = true
+                      AND (d.start_date IS NULL OR d.start_date <= NOW())
+                      AND (d.end_date IS NULL OR d.end_date >= NOW())
+                      AND (
+                            EXISTS (
+                                SELECT 1
+                                FROM discount_products dp
+                                WHERE dp.discount_id = d.id
+                                  AND dp.product_id = p.id
+                            )
+                         OR EXISTS (
+                                SELECT 1
+                                FROM discount_sections ds
+                                WHERE ds.discount_id = d.id
+                                  AND ds.section_id = p.section_id
+                            )
+                      )
+                    ORDER BY CASE
+                        WHEN d.type = 'Percentage' THEN ROUND(p.price - p.price * d.value / 100, 2)
+                        ELSE GREATEST(p.price - d.value, 0)
+                    END ASC, d.id
+                    LIMIT 1
+                ) AS final_price,
+                p.compare_price,
+                p.track_inventory,
+                p.stock_quantity,
+                (
+                    SELECT d.type::text
+                    FROM discounts d
+                    WHERE d.store_id = sec.store_id
+                      AND d.is_active = true
+                      AND (d.start_date IS NULL OR d.start_date <= NOW())
+                      AND (d.end_date IS NULL OR d.end_date >= NOW())
+                      AND (
+                            EXISTS (
+                                SELECT 1
+                                FROM discount_products dp
+                                WHERE dp.discount_id = d.id
+                                  AND dp.product_id = p.id
+                            )
+                         OR EXISTS (
+                                SELECT 1
+                                FROM discount_sections ds
+                                WHERE ds.discount_id = d.id
+                                  AND ds.section_id = p.section_id
+                            )
+                      )
+                    ORDER BY CASE
+                        WHEN d.type = 'Percentage' THEN ROUND(p.price - p.price * d.value / 100, 2)
+                        ELSE GREATEST(p.price - d.value, 0)
+                    END ASC, d.id
+                    LIMIT 1
+                ) AS discount_type,
+                (
+                    SELECT d.value
+                    FROM discounts d
+                    WHERE d.store_id = sec.store_id
+                      AND d.is_active = true
+                      AND (d.start_date IS NULL OR d.start_date <= NOW())
+                      AND (d.end_date IS NULL OR d.end_date >= NOW())
+                      AND (
+                            EXISTS (
+                                SELECT 1
+                                FROM discount_products dp
+                                WHERE dp.discount_id = d.id
+                                  AND dp.product_id = p.id
+                            )
+                         OR EXISTS (
+                                SELECT 1
+                                FROM discount_sections ds
+                                WHERE ds.discount_id = d.id
+                                  AND ds.section_id = p.section_id
+                            )
+                      )
+                    ORDER BY CASE
+                        WHEN d.type = 'Percentage' THEN ROUND(p.price - p.price * d.value / 100, 2)
+                        ELSE GREATEST(p.price - d.value, 0)
+                    END ASC, d.id
+                    LIMIT 1
+                ) AS discount_value,
+                (
+                    SELECT d.end_date
+                    FROM discounts d
+                    WHERE d.store_id = sec.store_id
+                      AND d.is_active = true
+                      AND (d.start_date IS NULL OR d.start_date <= NOW())
+                      AND (d.end_date IS NULL OR d.end_date >= NOW())
+                      AND (
+                            EXISTS (
+                                SELECT 1
+                                FROM discount_products dp
+                                WHERE dp.discount_id = d.id
+                                  AND dp.product_id = p.id
+                            )
+                         OR EXISTS (
+                                SELECT 1
+                                FROM discount_sections ds
+                                WHERE ds.discount_id = d.id
+                                  AND ds.section_id = p.section_id
+                            )
+                      )
+                    ORDER BY CASE
+                        WHEN d.type = 'Percentage' THEN ROUND(p.price - p.price * d.value / 100, 2)
+                        ELSE GREATEST(p.price - d.value, 0)
+                    END ASC, d.id
+                    LIMIT 1
+                ) AS discount_ends_at,
+                (
+                    SELECT CASE
+                        WHEN EXISTS (
+                            SELECT 1 FROM discount_products dp
+                            WHERE dp.discount_id = d.id
+                              AND dp.product_id = p.id
+                        ) THEN 'Product'
+                        ELSE 'Section'
+                    END
+                    FROM discounts d
+                    WHERE d.store_id = sec.store_id
+                      AND d.is_active = true
+                      AND (d.start_date IS NULL OR d.start_date <= NOW())
+                      AND (d.end_date IS NULL OR d.end_date >= NOW())
+                      AND (
+                            EXISTS (
+                                SELECT 1
+                                FROM discount_products dp
+                                WHERE dp.discount_id = d.id
+                                  AND dp.product_id = p.id
+                            )
+                         OR EXISTS (
+                                SELECT 1
+                                FROM discount_sections ds
+                                WHERE ds.discount_id = d.id
+                                  AND ds.section_id = p.section_id
+                            )
+                      )
+                    ORDER BY CASE
+                        WHEN d.type = 'Percentage' THEN ROUND(p.price - p.price * d.value / 100, 2)
+                        ELSE GREATEST(p.price - d.value, 0)
+                    END ASC, d.id
+                    LIMIT 1
+                ) AS discount_source,
+                (
+                    SELECT pi.image_url
+                    FROM product_images pi
+                    WHERE pi.product_id = p.id
+                    ORDER BY pi.display_order
+                    LIMIT 1
+                ) AS thumbnail_url
+            FROM products p
+            LEFT JOIN store_sections sec ON sec.id = p.section_id
+            WHERE {whereClause}
+            ORDER BY (
+                p.price - (
+                    SELECT CASE
+                        WHEN d.type = 'Percentage' THEN ROUND(p.price - p.price * d.value / 100, 2)
+                        ELSE GREATEST(p.price - d.value, 0)
+                    END
+                    FROM discounts d
+                    WHERE d.store_id = sec.store_id
+                      AND d.is_active = true
+                      AND (d.start_date IS NULL OR d.start_date <= NOW())
+                      AND (d.end_date IS NULL OR d.end_date >= NOW())
+                      AND (
+                            EXISTS (
+                                SELECT 1
+                                FROM discount_products dp
+                                WHERE dp.discount_id = d.id
+                                  AND dp.product_id = p.id
+                            )
+                         OR EXISTS (
+                                SELECT 1
+                                FROM discount_sections ds
+                                WHERE ds.discount_id = d.id
+                                  AND ds.section_id = p.section_id
+                            )
+                      )
+                    ORDER BY CASE
+                        WHEN d.type = 'Percentage' THEN ROUND(p.price - p.price * d.value / 100, 2)
+                        ELSE GREATEST(p.price - d.value, 0)
+                    END ASC, d.id
+                    LIMIT 1
+                )
+            ) DESC, p.created_at DESC
+            OFFSET @Offset LIMIT @PageSize
+            """;
+
+        await using var conn = (System.Data.Common.DbConnection)_connectionFactory.CreateConnection();
+
+        var parameters = new
+        {
+            StoreId = storeId,
+            Offset = (page - 1) * pageSize,
+            PageSize = pageSize
+        };
+
+        var total = await conn.ExecuteScalarAsync<int>(
+            new CommandDefinition(countSql, parameters, cancellationToken: ct));
+
+        var rows = await conn.QueryAsync<ProductSummaryRow>(
+            new CommandDefinition(dataSql, parameters, cancellationToken: ct));
+
+        var items = rows.Select(r => new ProductSummaryDto(
+            r.Id,
+            lang.Localize(r.NameEn, r.NameAr),
+            r.ThumbnailUrl,
+            r.Price,
+            r.FinalPrice,
+            r.ComparePrice,
+            InStock: !r.TrackInventory || r.StockQuantity > 0,
+            r.DiscountType is null ? null : new DiscountInfoDto(r.DiscountType, r.DiscountValue ?? 0m, r.DiscountEndsAt, r.DiscountSource ?? "Section"))).ToList();
 
         return PagedResult<ProductSummaryDto>.Create(items, page, pageSize, total);
     }
@@ -223,15 +661,161 @@ public sealed class CatalogQueries : ICatalogQueries
                 p.description_en,
                 p.description_ar,
                 p.price,
+                (
+                    SELECT CASE
+                        WHEN d.type = 'Percentage' THEN ROUND(p.price - p.price * d.value / 100, 2)
+                        ELSE GREATEST(p.price - d.value, 0)
+                    END
+                    FROM discounts d
+                    WHERE d.store_id = sec.store_id
+                      AND d.is_active = true
+                      AND (d.start_date IS NULL OR d.start_date <= NOW())
+                      AND (d.end_date IS NULL OR d.end_date >= NOW())
+                      AND (
+                            EXISTS (
+                                SELECT 1
+                                FROM discount_products dp
+                                WHERE dp.discount_id = d.id
+                                  AND dp.product_id = p.id
+                            )
+                         OR EXISTS (
+                                SELECT 1
+                                FROM discount_sections ds
+                                WHERE ds.discount_id = d.id
+                                  AND ds.section_id = p.section_id
+                            )
+                      )
+                    ORDER BY CASE
+                        WHEN d.type = 'Percentage' THEN ROUND(p.price - p.price * d.value / 100, 2)
+                        ELSE GREATEST(p.price - d.value, 0)
+                    END ASC, d.id
+                    LIMIT 1
+                ) AS final_price,
                 p.compare_price,
                 p.track_inventory,
                 p.stock_quantity,
+                (
+                    SELECT d.type::text
+                    FROM discounts d
+                    WHERE d.store_id = sec.store_id
+                      AND d.is_active = true
+                      AND (d.start_date IS NULL OR d.start_date <= NOW())
+                      AND (d.end_date IS NULL OR d.end_date >= NOW())
+                      AND (
+                            EXISTS (
+                                SELECT 1
+                                FROM discount_products dp
+                                WHERE dp.discount_id = d.id
+                                  AND dp.product_id = p.id
+                            )
+                         OR EXISTS (
+                                SELECT 1
+                                FROM discount_sections ds
+                                WHERE ds.discount_id = d.id
+                                  AND ds.section_id = p.section_id
+                            )
+                      )
+                    ORDER BY CASE
+                        WHEN d.type = 'Percentage' THEN ROUND(p.price - p.price * d.value / 100, 2)
+                        ELSE GREATEST(p.price - d.value, 0)
+                    END ASC, d.id
+                    LIMIT 1
+                ) AS discount_type,
+                (
+                    SELECT d.value
+                    FROM discounts d
+                    WHERE d.store_id = sec.store_id
+                      AND d.is_active = true
+                      AND (d.start_date IS NULL OR d.start_date <= NOW())
+                      AND (d.end_date IS NULL OR d.end_date >= NOW())
+                      AND (
+                            EXISTS (
+                                SELECT 1
+                                FROM discount_products dp
+                                WHERE dp.discount_id = d.id
+                                  AND dp.product_id = p.id
+                            )
+                         OR EXISTS (
+                                SELECT 1
+                                FROM discount_sections ds
+                                WHERE ds.discount_id = d.id
+                                  AND ds.section_id = p.section_id
+                            )
+                      )
+                    ORDER BY CASE
+                        WHEN d.type = 'Percentage' THEN ROUND(p.price - p.price * d.value / 100, 2)
+                        ELSE GREATEST(p.price - d.value, 0)
+                    END ASC, d.id
+                    LIMIT 1
+                ) AS discount_value,
+                (
+                    SELECT d.end_date
+                    FROM discounts d
+                    WHERE d.store_id = sec.store_id
+                      AND d.is_active = true
+                      AND (d.start_date IS NULL OR d.start_date <= NOW())
+                      AND (d.end_date IS NULL OR d.end_date >= NOW())
+                      AND (
+                            EXISTS (
+                                SELECT 1
+                                FROM discount_products dp
+                                WHERE dp.discount_id = d.id
+                                  AND dp.product_id = p.id
+                            )
+                         OR EXISTS (
+                                SELECT 1
+                                FROM discount_sections ds
+                                WHERE ds.discount_id = d.id
+                                  AND ds.section_id = p.section_id
+                            )
+                      )
+                    ORDER BY CASE
+                        WHEN d.type = 'Percentage' THEN ROUND(p.price - p.price * d.value / 100, 2)
+                        ELSE GREATEST(p.price - d.value, 0)
+                    END ASC, d.id
+                    LIMIT 1
+                ) AS discount_ends_at,
+                (
+                    SELECT CASE
+                        WHEN EXISTS (
+                            SELECT 1 FROM discount_products dp
+                            WHERE dp.discount_id = d.id
+                              AND dp.product_id = p.id
+                        ) THEN 'Product'
+                        ELSE 'Section'
+                    END
+                    FROM discounts d
+                    WHERE d.store_id = sec.store_id
+                      AND d.is_active = true
+                      AND (d.start_date IS NULL OR d.start_date <= NOW())
+                      AND (d.end_date IS NULL OR d.end_date >= NOW())
+                      AND (
+                            EXISTS (
+                                SELECT 1
+                                FROM discount_products dp
+                                WHERE dp.discount_id = d.id
+                                  AND dp.product_id = p.id
+                            )
+                         OR EXISTS (
+                                SELECT 1
+                                FROM discount_sections ds
+                                WHERE ds.discount_id = d.id
+                                  AND ds.section_id = p.section_id
+                            )
+                      )
+                    ORDER BY CASE
+                        WHEN d.type = 'Percentage' THEN ROUND(p.price - p.price * d.value / 100, 2)
+                        ELSE GREATEST(p.price - d.value, 0)
+                    END ASC, d.id
+                    LIMIT 1
+                ) AS discount_source,
                 EXISTS (
                     SELECT 1 FROM favorite_products fp
                     WHERE fp.product_id = p.id
                       AND fp.customer_id = @CustomerId
                 ) AS is_favorite
             FROM products p
+            LEFT JOIN store_sections sec ON sec.id = p.section_id
             WHERE p.id = @ProductId
               AND p.is_active = true
               AND p.deleted_at IS NULL
@@ -313,10 +897,12 @@ public sealed class CatalogQueries : ICatalogQueries
             lang.Localize(product.NameEn, product.NameAr),
             lang.LocalizeNullable(product.DescriptionEn, product.DescriptionAr),
             product.Price,
+            product.FinalPrice,
             product.ComparePrice,
             InStock: !product.TrackInventory || product.StockQuantity > 0,
             StockQuantity: product.TrackInventory ? product.StockQuantity : null,
             product.IsFavorite,
+            product.DiscountType is null ? null : new DiscountInfoDto(product.DiscountType, product.DiscountValue ?? 0m, product.DiscountEndsAt, product.DiscountSource ?? "Section"),
             images.Select(i => new ProductImageDto(i.Id, i.ImageUrl)).ToList(),
             optionGroups);
     }
@@ -352,6 +938,9 @@ public sealed class CatalogQueries : ICatalogQueries
         public string NameEn { get; init; } = default!;
         public string NameAr { get; init; } = default!;
         public string? ImageUrl { get; init; }
+        public string? DiscountType { get; init; }
+        public decimal? DiscountValue { get; init; }
+        public DateTime? DiscountEndsAt { get; init; }
     }
 
     private sealed class ProductSummaryRow
@@ -360,10 +949,15 @@ public sealed class CatalogQueries : ICatalogQueries
         public string NameEn { get; init; } = default!;
         public string NameAr { get; init; } = default!;
         public decimal Price { get; init; }
+        public decimal FinalPrice { get; init; }
         public decimal? ComparePrice { get; init; }
         public bool TrackInventory { get; init; }
         public int StockQuantity { get; init; }
         public string? ThumbnailUrl { get; init; }
+        public string? DiscountType { get; init; }
+        public decimal? DiscountValue { get; init; }
+        public DateTime? DiscountEndsAt { get; init; }
+        public string? DiscountSource { get; init; }
     }
 
     private sealed class ProductDetailRow
@@ -374,10 +968,15 @@ public sealed class CatalogQueries : ICatalogQueries
         public string? DescriptionEn { get; init; }
         public string? DescriptionAr { get; init; }
         public decimal Price { get; init; }
+        public decimal FinalPrice { get; init; }
         public decimal? ComparePrice { get; init; }
         public bool TrackInventory { get; init; }
         public int StockQuantity { get; init; }
         public bool IsFavorite { get; init; }
+        public string? DiscountType { get; init; }
+        public decimal? DiscountValue { get; init; }
+        public DateTime? DiscountEndsAt { get; init; }
+        public string? DiscountSource { get; init; }
     }
 
     private sealed class ProductImageRow
