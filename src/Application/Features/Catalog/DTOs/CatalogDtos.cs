@@ -17,6 +17,16 @@ public record StoreDetailDto(
     bool IsFavorite);
 public record StoreBannerDto(Guid Id, string ImageUrl, string? Title, string? ActionUrl);
 
+public record StoreCouponDto(
+    Guid Id,
+    string Code,
+    short DiscountType,
+    decimal DiscountValue,
+    decimal? MaxDiscountAmount,
+    decimal MinOrderAmount,
+    DateTime StartsAt,
+    DateTime? ExpiresAt);
+
 public record DiscountInfoDto(
     string Type,
     decimal Value,

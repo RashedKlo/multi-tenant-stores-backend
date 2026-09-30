@@ -16,6 +16,10 @@ public interface ICatalogQueries
         Language lang,
         CancellationToken ct = default);
 
+    Task<IReadOnlyList<StoreCouponDto>> GetStoreCouponsAsync(
+        Guid storeId,
+        CancellationToken ct = default);
+
     Task<PagedResult<StoreSectionDto>> GetStoreSectionsAsync(
         Guid storeId,
         bool discountedOnly,

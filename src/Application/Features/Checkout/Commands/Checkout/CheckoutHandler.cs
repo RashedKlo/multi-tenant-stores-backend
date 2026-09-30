@@ -18,7 +18,8 @@ public sealed class CheckoutHandler(
     IOrderRepository orderRepository,
     IPaymentRepository paymentRepository,
     IPaymentService paymentService,
-    ICartRepository cartRepository)
+    ICartRepository cartRepository,
+    ICouponRepository couponRepository)
     : IRequestHandler<CheckoutCommand, Result<CheckoutResultDto>>
 {
     public async Task<Result<CheckoutResultDto>> Handle(
@@ -70,6 +71,26 @@ public sealed class CheckoutHandler(
             ? null
             : request.DeliveryPhone.Trim();
 
+        decimal discountTotal = 0m;
+        if (!string.IsNullOrWhiteSpace(request.CouponCode))
+        {
+            var coupon = await couponRepository.GetActiveByStoreAndCodeAsync(
+                request.StoreId,
+                request.CouponCode.Trim(),
+                DateTime.UtcNow,
+                cancellationToken);
+
+            if (coupon is null)
+                return Result<CheckoutResultDto>.Failure(
+                    Error.NotFound("Coupon.NotFound", "Coupon was not found or is no longer active."));
+
+            var discountResult = coupon.CalculateDiscount(cart.Items.Sum(item => item.LineTotal), DateTime.UtcNow);
+            if (discountResult.IsFailure)
+                return Result<CheckoutResultDto>.Failure(discountResult.Errors);
+
+            discountTotal = discountResult.Value;
+        }
+
         var orderResult = Order.Create(
             customerId,
             request.StoreId,
@@ -80,7 +101,7 @@ public sealed class CheckoutHandler(
             lines,
             address.Id,
             deliveryPhone,
-            discountTotal: 0m);
+            discountTotal: discountTotal);
 
         if (orderResult.IsFailure)
             return Result<CheckoutResultDto>.Failure(orderResult.Errors);

@@ -8,4 +8,5 @@ namespace Application.Features.Checkout.Commands.Checkout;
 public sealed record CheckoutCommand(
     Guid StoreId,
     Guid AddressId,
-    string? DeliveryPhone = null) : IRequest<Result<CheckoutResultDto>>;
+    string? DeliveryPhone = null,
+    string? CouponCode = null) : IRequest<Result<CheckoutResultDto>>;
