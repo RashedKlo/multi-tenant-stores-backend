@@ -453,6 +453,7 @@ CREATE TABLE cart_items (
     id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     cart_id       uuid NOT NULL REFERENCES carts(id) ON DELETE CASCADE,
     product_id    uuid NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    discount_id   uuid REFERENCES discounts(id) ON DELETE SET NULL,
     quantity      int NOT NULL CHECK (quantity > 0),
     notes         varchar(500),
     created_at    timestamptz NOT NULL DEFAULT now(),

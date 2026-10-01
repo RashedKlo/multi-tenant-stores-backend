@@ -20,9 +20,9 @@ public class CartTests
         var cart = Cart.Create(Guid.NewGuid(), customerId: Guid.NewGuid()).Value!;
         var productId = Guid.NewGuid();
         var optionId = Guid.NewGuid();
-
-        var first = cart.AddItem(productId, 2, "note", new[] { optionId });
-        var second = cart.AddItem(productId, 3, "note", new[] { optionId });
+        var discountId=Guid.NewGuid();
+        var first = cart.AddItem(productId,discountId, 2, "note", new[] { optionId });
+        var second = cart.AddItem(productId,discountId, 3, "note", new[] { optionId });
 
         first.IsSuccess.Should().BeTrue();
         second.IsSuccess.Should().BeTrue();

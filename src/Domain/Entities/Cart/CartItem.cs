@@ -8,6 +8,7 @@ public sealed class CartItem
     public Guid Id { get; private set; }
     public Guid CartId { get; private set; }
     public Guid ProductId { get; private set; }
+    public Guid DiscountId { get; private set; }
     public int Quantity { get; private set; }
     public string? Notes { get; private set; }
     public DateTime CreatedAt { get; private set; }
@@ -21,6 +22,7 @@ public sealed class CartItem
     internal static Result<CartItem> Create(
         Guid cartId,
         Guid productId,
+        Guid discountId,
         int quantity,
         string? notes = null,
         IEnumerable<Guid>? optionIds = null)
@@ -35,6 +37,7 @@ public sealed class CartItem
         var result = item
             .SetCartId(cartId)
             .Bind(() => item.SetProductId(productId))
+            .Bind(()=>item.SetDiscountId(discountId))
             .Bind(() => item.SetQuantity(quantity))
             .Bind(() => item.SetNotes(notes));
 
@@ -75,6 +78,15 @@ public sealed class CartItem
         ProductId = productId;
         return Result.Success();
     }
+
+    private Result SetDiscountId(Guid discountId)
+    {
+    
+        DiscountId = discountId;
+        return Result.Success();
+    }
+  
+
 
     public Result SetQuantity(int quantity)
     {

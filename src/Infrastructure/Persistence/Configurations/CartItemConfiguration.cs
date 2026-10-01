@@ -17,6 +17,7 @@ public class CartItemConfiguration : IEntityTypeConfiguration<CartItem>
             .ValueGeneratedNever();
         builder.Property(x => x.CartId).HasColumnName("cart_id").HasColumnType("uuid").IsRequired();
         builder.Property(x => x.ProductId).HasColumnName("product_id").HasColumnType("uuid").IsRequired();
+        builder.Property(x => x.DiscountId).HasColumnName("discount_id").HasColumnType("uuid").IsRequired(false);
         builder.Property(x => x.Quantity).HasColumnName("quantity").HasColumnType("int").IsRequired();
         builder.Property(x => x.Notes).HasColumnName("notes").HasColumnType("varchar(500)").HasMaxLength(500);
         builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz")

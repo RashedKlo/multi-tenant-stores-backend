@@ -32,7 +32,7 @@ public class CartController(IMediator mediator) : ApiControllerBase
     public async Task<ActionResult> AddItem(
         [FromBody] AddCartItemRequest command,
         CancellationToken ct)
-        => HandleResult(await mediator.Send(new AddCartItemCommand(command.StoreId, command.ProductId, command.Quantity, command.Notes, command.OptionIds), ct));
+        => HandleResult(await mediator.Send(new AddCartItemCommand(command.StoreId, command.ProductId, command.DiscountId, command.Quantity, command.Notes, command.OptionIds), ct));
 
     /// <summary>
     /// Updates the quantity of an existing cart item.

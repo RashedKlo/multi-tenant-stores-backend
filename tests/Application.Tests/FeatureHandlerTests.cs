@@ -222,6 +222,7 @@ public class CartFeatureHandlerTests
     {
         var customerId = Guid.NewGuid();
         var storeId = Guid.NewGuid();
+        var discountId = Guid.NewGuid();
         var cart = Cart.Create(storeId, customerId: customerId).Value!;
 
         var user = Substitute.For<ICurrentUserService>();
@@ -233,7 +234,7 @@ public class CartFeatureHandlerTests
         var handler = new AddCartItemHandler(carts, user);
 
         var result = await handler.Handle(
-            new AddCartItemCommand(storeId, Guid.NewGuid(), 2, "gift wrap", new[] { Guid.NewGuid() }),
+            new AddCartItemCommand(storeId, Guid.NewGuid(), discountId, 2, "gift wrap", new[] { Guid.NewGuid() }),
             CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -269,8 +270,9 @@ public class CartFeatureHandlerTests
     {
         var customerId = Guid.NewGuid();
         var storeId = Guid.NewGuid();
+        var discountId = Guid.NewGuid();
         var cart = Cart.Create(storeId, customerId: customerId).Value!;
-        cart.AddItem(Guid.NewGuid(), 1);
+        cart.AddItem(Guid.NewGuid(), discountId, 1);
 
         var user = Substitute.For<ICurrentUserService>();
         user.CustomerId.Returns(customerId);

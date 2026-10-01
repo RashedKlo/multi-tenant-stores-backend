@@ -25,6 +25,7 @@ public sealed class AddCartItemHandler : IRequestHandler<AddCartItemCommand, Res
 
         var addResult = cartResult.Value!.AddItem(
             request.ProductId,
+            request.DiscountId,
             request.Quantity,
             request.Notes,
             request.OptionIds);

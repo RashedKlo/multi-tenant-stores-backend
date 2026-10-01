@@ -79,6 +79,7 @@ public sealed class Cart
 
     public Result AddItem(
         Guid productId,
+        Guid discountId,
         int quantity,
         string? notes = null,
         IEnumerable<Guid>? optionIds = null)
@@ -94,7 +95,7 @@ public sealed class Cart
             Touch();
             return Result.Success();
         }
-        var itemResult = CartItem.Create(Id, productId, quantity, notes, optionIds);
+        var itemResult = CartItem.Create(Id, productId, discountId, quantity, notes, optionIds);
         if (itemResult.IsFailure)
             return Result.Failure(itemResult.Errors);
 
