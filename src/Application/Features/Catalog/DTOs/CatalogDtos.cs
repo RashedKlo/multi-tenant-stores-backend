@@ -28,6 +28,7 @@ public record StoreCouponDto(
     DateTime? ExpiresAt);
 
 public record DiscountInfoDto(
+    Guid Id,
     string Type,
     decimal Value,
     DateTime? EndsAt,

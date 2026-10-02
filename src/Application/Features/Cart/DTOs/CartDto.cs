@@ -1,6 +1,14 @@
-// Application/Common/Models/CartDto.cs
+// Application/Features/Cart/DTOs/CartDto.cs
 using System.Text.Json.Serialization;
+
 namespace Application.Features.Cart.DTOs;
+
+/// <summary>The discount currently applied to a cart line (already validated as active).</summary>
+public sealed record CartDiscountDto(
+    Guid Id,
+    string Type,          // "Percentage" | "FixedAmount"
+    decimal Value,
+    DateTime? EndsAt);
 
 public sealed record CartItemDto(
     Guid CartItemId,
@@ -8,12 +16,14 @@ public sealed record CartItemDto(
     Guid StoreId,
     Guid ProductId,
     string ProductName,
-    string ProductImage,
-    decimal BasePrice,
+    string? ProductImage,
+    decimal BasePrice,          // price before discount
+    decimal FinalUnitPrice,     // price after discount, before options
     int Quantity,
     string? Notes,
+    CartDiscountDto? Discount,
     IReadOnlyList<SelectedOptionDto> SelectedOptions,
-    decimal ItemTotalPrice);
+    decimal ItemTotalPrice);    // (FinalUnitPrice + options) * Quantity
 
 public sealed record SelectedOptionDto(
     [property: JsonPropertyName("option_id")] Guid OptionId,
@@ -29,9 +39,11 @@ public sealed record CheckoutCartDto(
 public sealed record CheckoutCartItemDto(
     Guid CartItemId,
     Guid ProductId,
-   string NameEn,
+    string NameEn,
     string NameAr,
-    decimal UnitPrice,
+    decimal UnitPrice,          // price before discount
+    decimal FinalUnitPrice,     // price after discount, before options
+    CartDiscountDto? Discount,
     int Quantity,
     string? Notes,
     bool TrackInventory,
@@ -45,8 +57,11 @@ public sealed record CheckoutCartItemDto(
         (!TrackInventory || StockQuantity >= Quantity);
 
     public decimal OptionsTotal => Options.Sum(o => o.PriceAdjustment);
-    public decimal EffectiveUnitPrice => UnitPrice + OptionsTotal;
+    public decimal EffectiveUnitPrice => FinalUnitPrice + OptionsTotal;
     public decimal LineTotal => EffectiveUnitPrice * Quantity;
+
+    /// <summary>Total saved on this line (for order.discount_total).</summary>
+    public decimal DiscountTotal => (UnitPrice - FinalUnitPrice) * Quantity;
 }
 
 public sealed record CheckoutOptionDto(
