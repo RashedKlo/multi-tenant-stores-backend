@@ -3,6 +3,7 @@ using Dapper;
 using FluentAssertions;
 using Npgsql;
 using Testcontainers.PostgreSql;
+using Xunit;
 
 namespace Infrastructure.Tests;
 
@@ -63,7 +64,7 @@ public sealed class DapperMappingRegressionTests : IAsyncLifetime
             });
     }
 
-    [Fact]
+    [DockerFact]
     public async Task QuerySingleAsync_WithSnakeCaseColumns_MapsToPascalCaseProperties()
     {
         Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
@@ -91,10 +92,7 @@ public sealed class DapperMappingRegressionTests : IAsyncLifetime
         row.DisplayOrder.Should().Be(3);
     }
 
-    public async Task DisposeAsync()
-    {
-        await _container.DisposeAsync();
-    }
+    public async Task DisposeAsync() => await _container.DisposeAsync();
 
     private sealed class ProductRegressionRow
     {
@@ -105,5 +103,26 @@ public sealed class DapperMappingRegressionTests : IAsyncLifetime
         public decimal PriceAdjustment { get; init; }
         public bool IsDefault { get; init; }
         public int DisplayOrder { get; init; }
+    }
+}
+
+public sealed class DockerFactAttribute : FactAttribute
+{
+    public DockerFactAttribute()
+    {
+        if (!IsDockerEndpointAvailable())
+            Skip = "Docker is required for this integration test.";
+    }
+
+    private static bool IsDockerEndpointAvailable()
+    {
+        var dockerHost = Environment.GetEnvironmentVariable("DOCKER_HOST");
+        if (dockerHost?.StartsWith("tcp://", StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+
+        if (OperatingSystem.IsWindows())
+            return File.Exists(@"\\.\pipe\docker_engine");
+
+        return File.Exists("/var/run/docker.sock");
     }
 }
