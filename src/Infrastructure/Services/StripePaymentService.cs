@@ -29,6 +29,7 @@ public sealed class StripePaymentService : IPaymentService
         var options = new SessionCreateOptions
         {
             Mode = "payment",
+            ExpiresAt=DateTime.UtcNow.AddMinutes(_settings.SessionExpirationMinutes),
             SuccessUrl = string.IsNullOrWhiteSpace(request.SuccessUrl)
                 ? _settings.SuccessUrl
                 : request.SuccessUrl,
@@ -62,11 +63,11 @@ public sealed class StripePaymentService : IPaymentService
         };
 
         var service = new SessionService();
-        var session = await service.CreateAsync(options, cancellationToken: cancellationToken);
+        var session = await service.CreateAsync(options,new RequestOptions{ IdempotencyKey = request.IdempotencyKey }, cancellationToken: cancellationToken);
 
         return new CreateCheckoutSessionResult(
             session.Id,
-            session.Url!,
+            session.Url,
             session.PaymentIntentId);
     }
 }

@@ -23,6 +23,11 @@ public static class RepositoryServiceCollectionExtensions
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<ISupportConversationRepository, SupportConversationRepository>();
         services.AddScoped<ISupportMessageRepository, SupportMessageRepository>();
+        services.AddScoped<IStockRepository, StockRepository>();
+
+        // Unit of Work
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
 
         return services;
     }

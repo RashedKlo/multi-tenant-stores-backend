@@ -1,3 +1,4 @@
+// Infrastructure/Persistence/Repositories/PaymentRepository.cs
 using Domain.Entities;
 using Domain.Interfaces;
 using Infrastructure.Persistence;
@@ -16,13 +17,14 @@ public class PaymentRepository : IPaymentRepository
     public Task<Payment?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default) =>
         _context.Payments.FirstOrDefaultAsync(p => p.OrderId == orderId, cancellationToken);
 
-    // Called from the Stripe webhook handler — must be tracked since the
-    // handler immediately updates Status/PaidAt/etc. after this lookup.
+    // Webhook lookups: tracked on purpose, the handler updates the payment right after.
     public Task<Payment?> GetByStripePaymentIntentIdAsync(string stripePaymentIntentId, CancellationToken cancellationToken = default) =>
         _context.Payments.FirstOrDefaultAsync(p => p.StripePaymentIntentId == stripePaymentIntentId, cancellationToken);
 
-    public void Add(Payment payment) => _context.Payments.Add(payment);
-    public void Update(Payment payment) => _context.Payments.Update(payment);
+    public Task<Payment?> GetByStripeSessionIdAsync(string stripeSessionId, CancellationToken cancellationToken = default) =>
+        _context.Payments.FirstOrDefaultAsync(p => p.StripeSessionId == stripeSessionId, cancellationToken);
+
+    public async Task AddAsync(Payment payment, CancellationToken cancellationToken = default) =>await  _context.Payments.AddAsync(payment, cancellationToken);
 
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
         _context.SaveChangesAsync(cancellationToken);

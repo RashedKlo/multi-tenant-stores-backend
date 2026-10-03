@@ -35,12 +35,21 @@ namespace Infrastructure.Persistence.Configurations
                 .HasMaxLength(50)
                 .HasDefaultValue("Stripe")
                 .IsRequired();
+                
 
             builder.Property(x => x.StripePaymentIntentId)
                 .HasColumnName("stripe_payment_intent_id")
                 .HasColumnType("varchar(255)")
                 .HasMaxLength(255)
-                .IsRequired();
+                .IsRequired(false);                     
+
+            builder.Property(x => x.StripeSessionId)
+                .HasColumnName("stripe_session_id")
+                .HasColumnType("varchar(255)")
+                .HasMaxLength(255)
+                .IsRequired(false);
+
+           
 
             builder.Property(x => x.Status)
                 .HasColumnName("status")
@@ -99,6 +108,7 @@ namespace Infrastructure.Persistence.Configurations
             builder.HasIndex(x => x.StripePaymentIntentId)
                 .IsUnique()
                 .HasDatabaseName("uq_payments_stripe_payment_intent_id");
+                
 
             builder.HasIndex(x => x.Status)
                 .HasDatabaseName("idx_payments_status");

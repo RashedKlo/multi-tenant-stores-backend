@@ -58,6 +58,11 @@ namespace Infrastructure.Persistence.Configurations
                 .HasColumnType("uuid")
                 .IsRequired(false);
 
+            builder.Property(x => x.CouponId)
+                .HasColumnName("coupon_id")
+                .HasColumnType("uuid")
+                .IsRequired(false);
+
             builder.Property(x => x.DeliveryName)
                 .HasColumnName("delivery_name")
                 .HasColumnType("varchar(200)")
