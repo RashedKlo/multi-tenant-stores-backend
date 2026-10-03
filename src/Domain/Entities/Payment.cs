@@ -9,7 +9,13 @@ public sealed class Payment
     public Guid Id { get; private set; }
     public Guid OrderId { get; private set; }
     public string Provider { get; private set; } = string.Empty;
-    public string StripePaymentIntentId { get; private set; } = string.Empty;
+
+    /// <summary>Stripe Checkout Session id (cs_...). Set right after the session is created.</summary>
+    public string? StripeSessionId { get; private set; }
+
+    /// <summary>Stripe PaymentIntent id (pi_...). Known once Stripe reports it; may stay null for a while.</summary>
+    public string? StripePaymentIntentId { get; private set; }
+
     public PaymentStatus Status { get; private set; }
     public decimal Amount { get; private set; }
     public string Currency { get; private set; } = string.Empty;
@@ -24,40 +30,38 @@ public sealed class Payment
 
     private Payment() { }
 
-    public static Result<Payment> Create(
+    /// <summary>Creates a Pending payment BEFORE the provider session exists.</summary>
+    public static Result<Payment> Initiate(
         Guid orderId,
-        string stripePaymentIntentId,
         decimal amount,
         string provider = "Stripe",
-        string currency = "USD",
-        string? providerMetadata = null)
+        string currency = "USD")
     {
         var payment = new Payment();
 
         return payment
             .SetOrderId(orderId)
             .Bind(() => payment.SetProvider(provider))
-            .Bind(() => payment.SetStripePaymentIntentId(stripePaymentIntentId))
             .Bind(() => payment.SetAmount(amount))
             .Bind(() => payment.SetCurrency(currency))
-            .Bind(() => payment.SetProviderMetadata(providerMetadata))
             .Bind(() => payment.Initialize())
             .Bind(() => Result<Payment>.Success(payment));
     }
 
-    public Result SetStripeReference(string sessionOrIntentId, string? paymentIntentId = null)
+    /// <summary>
+    /// Stores the Stripe ids. Safe to call repeatedly (checkout, then webhook):
+    /// the payment intent id is only overwritten when a non-empty value is supplied.
+    /// </summary>
+    public Result AttachCheckoutSession(string sessionId, string? paymentIntentId = null)
     {
-        if (string.IsNullOrWhiteSpace(sessionOrIntentId))
+        if (string.IsNullOrWhiteSpace(sessionId))
             return Result.Failure(Error.Validation(
-                "Payment.StripeReference.Required", "Stripe reference is required."));
+                "Payment.StripeSessionId.Required", "Stripe session id is required."));
 
-        StripePaymentIntentId = string.IsNullOrWhiteSpace(paymentIntentId)
-            ? sessionOrIntentId.Trim()
-            : paymentIntentId.Trim();
+        StripeSessionId = sessionId.Trim();
 
-        ProviderMetadata = string.IsNullOrWhiteSpace(paymentIntentId)
-            ? ProviderMetadata
-            : $"{{\"session_id\":\"{sessionOrIntentId.Trim()}\"}}";
+        if (!string.IsNullOrWhiteSpace(paymentIntentId))
+            StripePaymentIntentId = paymentIntentId.Trim();
 
         Touch();
         return Result.Success();
@@ -133,15 +137,6 @@ public sealed class Payment
         return Result.Success();
     }
 
-    private Result SetStripePaymentIntentId(string id)
-    {
-        if (string.IsNullOrWhiteSpace(id))
-            return Result.Failure(Error.Validation(
-                "Payment.StripePaymentIntentId.Required", "Stripe payment intent id is required."));
-        StripePaymentIntentId = id.Trim();
-        return Result.Success();
-    }
-
     private Result SetAmount(decimal amount)
     {
         if (amount < 0)
@@ -155,12 +150,6 @@ public sealed class Payment
         if (string.IsNullOrWhiteSpace(currency))
             return Result.Failure(Error.Validation("Payment.Currency.Required", "Currency is required."));
         Currency = currency.Trim().ToUpperInvariant();
-        return Result.Success();
-    }
-
-    private Result SetProviderMetadata(string? metadata)
-    {
-        ProviderMetadata = string.IsNullOrWhiteSpace(metadata) ? null : metadata.Trim();
         return Result.Success();
     }
 

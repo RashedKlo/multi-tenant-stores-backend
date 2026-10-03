@@ -13,6 +13,7 @@ public sealed class Order
     public Guid CustomerId { get; private set; }
     public Guid StoreId { get; private set; }
     public Guid? AddressId { get; private set; }
+    public Guid? CouponId { get; private set; }
 
     public string DeliveryName { get; private set; } = null!;
     public string? DeliveryPhone { get; private set; }
@@ -47,6 +48,7 @@ public sealed class Order
         decimal deliveryLongitude,
         IReadOnlyList<OrderLineInput> lines,
         Guid? addressId = null,
+        Guid? couponId = null,
         string? deliveryPhone = null,
         decimal discountTotal = 0)
     {
@@ -68,6 +70,7 @@ public sealed class Order
             .Bind(() => order.SetDelivery(
                 deliveryName, deliveryPhone, deliveryAddressText,
                 deliveryLatitude, deliveryLongitude, addressId))
+            .Bind(() => order.SetCouponId(couponId))
             .Bind(() => order.AddLines(lines))
             .Bind(() => order.ApplyDiscount(discountTotal))
             .Bind(() => order.RecordStatus(
@@ -85,7 +88,13 @@ public sealed class Order
         CustomerId = customerId;
         return Result.Success();
     }
-
+    private Result SetCouponId(Guid? couponId)
+    {
+        if (couponId is not null && couponId == Guid.Empty)
+            return Result.Failure(Error.Validation("Order.CouponId.Invalid", "CouponId cannot be empty."));
+        CouponId = couponId;
+        return Result.Success();
+    }
     private Result SetStoreId(Guid storeId)
     {
         if (storeId == Guid.Empty)
