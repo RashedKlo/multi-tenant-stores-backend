@@ -4,12 +4,13 @@ public sealed record CreateCheckoutSessionRequest(
     Guid OrderId,
     Guid CustomerId,
     Guid StoreId,
-    decimal Amount,          // total in major units (e.g. 25.50)
-    string Currency,         // "usd"
+    decimal Amount,
+    string Currency,
     string SuccessUrl,
     string CancelUrl,
-     string? Description = null,
-    string? CustomerEmail = null);
+    string? Description = null,
+    string? CustomerEmail = null,
+    string? IdempotencyKey = null);
 
 public sealed record CreateCheckoutSessionResult(
     string SessionId,

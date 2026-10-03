@@ -6,115 +6,141 @@ using Domain.Common;
 using Domain.Entities;
 using Domain.Enums;
 using Domain.Interfaces;
+using Domain.Services;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Application.Features.Checkout.Commands.Checkout;
 
+/// <summary>
+/// Checkout flow
+///   1. Read + validate           (address, customer, cart, availability, coupon)
+///   2. Price the order           (CheckoutPricingService: item discounts, then coupon)
+///   3. TX 1                      reserve stock, redeem coupon, insert Order(Pending) + Payment(Pending)
+///   4. Stripe                    create the checkout session (outside any DB transaction, idempotent)
+///   5. TX 2                      attach the Stripe session to the payment and clear the cart
+///   Stripe failure -> TX 3       cancel order, fail payment, release stock + coupon.
+///   Later failures (session expired / async payment failed) are released by the Stripe webhook.
+/// </summary>
 public sealed class CheckoutHandler(
     ICurrentUserService currentUser,
     ICartQueries cartQueries,
+    ICartRepository cartRepository,
     ICustomerAddressRepository addressRepository,
     ICustomerRepository customerRepository,
     IOrderRepository orderRepository,
     IPaymentRepository paymentRepository,
+    ICouponRepository couponRepository,
+    IStockRepository stockRepository,
     IPaymentService paymentService,
-    ICartRepository cartRepository,
-    ICouponRepository couponRepository)
+    IUnitOfWork unitOfWork,
+    ILogger<CheckoutHandler> logger)
     : IRequestHandler<CheckoutCommand, Result<CheckoutResultDto>>
 {
+    private const string Currency = "USD";
+    private const string PaymentProvider = "Stripe";
+
     public async Task<Result<CheckoutResultDto>> Handle(
         CheckoutCommand request,
         CancellationToken cancellationToken)
     {
-        if (!currentUser.IsAuthenticated || currentUser.CustomerId is null)
-            return Result<CheckoutResultDto>.Failure(
-                Error.Unauthorized("Checkout.Unauthorized", "Customer must be authenticated."));
+        // ── 1. Authentication ────────────────────────────────────────────
+        if (!currentUser.IsAuthenticated || currentUser.CustomerId is not { } customerId)
+            return Fail(Error.Unauthorized("Checkout.Unauthorized", "Customer must be authenticated."));
 
-        var customerId = currentUser.CustomerId.Value;
-
+        // ── 2. Load + validate ───────────────────────────────────────────
         var address = await addressRepository.GetByIdForCustomerAsync(
             request.AddressId, customerId, cancellationToken);
 
         if (address is null || address.IsDeleted)
-            return Result<CheckoutResultDto>.Failure(
-                Error.NotFound("Checkout.AddressNotFound", "Delivery address not found."));
+            return Fail(Error.NotFound("Checkout.AddressNotFound", "Delivery address not found."));
 
         var customer = await customerRepository.GetByIdAsync(customerId, cancellationToken);
         if (customer is null || customer.IsDeleted)
-            return Result<CheckoutResultDto>.Failure(
-                Error.NotFound("Checkout.CustomerNotFound", "Customer not found."));
+            return Fail(Error.NotFound("Checkout.CustomerNotFound", "Customer not found."));
 
         var cart = await cartQueries.GetCartForCheckoutAsync(
             customerId, request.StoreId, cancellationToken);
 
         if (cart is null || cart.Items.Count == 0)
-            return Result<CheckoutResultDto>.Failure(
-                Error.Validation("Checkout.EmptyCart", "Cart is empty for this store."));
+            return Fail(Error.Validation("Checkout.EmptyCart", "Cart is empty for this store."));
 
         var availabilityErrors = ValidateAvailability(cart.Items);
         if (availabilityErrors.Count > 0)
-            return Result<CheckoutResultDto>.Failure(availabilityErrors);
+            return Fail(availabilityErrors);
 
-        var lines = cart.Items.Select(i => new OrderLineInput(
-            i.ProductId,
-            i.NameEn,
-            i.NameAr,
-            i.UnitPrice, // base product unit price (options applied in OrderItem.Create)
-            i.Quantity,
-            i.Options
-                .Select(o => new OrderOptionInput(o.NameEn, o.NameAr, o.PriceAdjustment))
-                .ToList()
-        )).ToList();
+        var now = DateTime.UtcNow;
 
-        var deliveryName = $"{customer.FirstName} {customer.LastName}".Trim();
-        var deliveryPhone = string.IsNullOrWhiteSpace(request.DeliveryPhone)
-            ? null
-            : request.DeliveryPhone.Trim();
-
-        decimal discountTotal = 0m;
+        Coupon? coupon = null;
         if (!string.IsNullOrWhiteSpace(request.CouponCode))
         {
-            var coupon = await couponRepository.GetActiveByStoreAndCodeAsync(
-                request.StoreId,
-                request.CouponCode.Trim(),
-                DateTime.UtcNow,
-                cancellationToken);
+            coupon = await couponRepository.GetActiveByStoreAndCodeAsync(
+                request.StoreId, request.CouponCode.Trim(), now, cancellationToken);
 
             if (coupon is null)
-                return Result<CheckoutResultDto>.Failure(
-                    Error.NotFound("Coupon.NotFound", "Coupon was not found or is no longer active."));
-
-            var discountResult = coupon.CalculateDiscount(cart.Items.Sum(item => item.LineTotal), DateTime.UtcNow);
-            if (discountResult.IsFailure)
-                return Result<CheckoutResultDto>.Failure(discountResult.Errors);
-
-            discountTotal = discountResult.Value;
+                return Fail(Error.NotFound("Coupon.NotFound", "Coupon was not found or is no longer active."));
         }
 
+        // ── 3. Pricing ───────────────────────────────────────────────────
+        var pricingResult = CheckoutPricingService.Calculate(ToPricedLines(cart.Items), coupon, now);
+        if (pricingResult.IsFailure)
+            return Fail(pricingResult.Errors);
+
+        var pricing = pricingResult.Value!;
+
+        // ── 4. Build aggregates ──────────────────────────────────────────
         var orderResult = Order.Create(
             customerId,
             request.StoreId,
-            deliveryName,
+            BuildDeliveryName(customer),
             address.AddressText,
             address.Latitude,
             address.Longitude,
-            lines,
+            ToOrderLines(cart.Items),
             address.Id,
-            deliveryPhone,
-            discountTotal: discountTotal);
+            coupon?.Id,
+            NormalizePhone(request.DeliveryPhone),
+            discountTotal: pricing.DiscountTotal); // item discounts + coupon
 
         if (orderResult.IsFailure)
-            return Result<CheckoutResultDto>.Failure(orderResult.Errors);
+            return Fail(orderResult.Errors);
 
         var order = orderResult.Value!;
 
         if (order.Total <= 0)
-            return Result<CheckoutResultDto>.Failure(
-                Error.Validation("Checkout.InvalidTotal", "Order total must be greater than zero."));
+            return Fail(Error.Validation("Checkout.InvalidTotal", "Order total must be greater than zero."));
 
-      await  orderRepository.AddAsync(order);
-        await orderRepository.SaveChangesAsync(cancellationToken);
 
+        var paymentResult = Payment.Initiate(order.Id, order.Total, PaymentProvider, Currency);
+        if (paymentResult.IsFailure)
+            return Fail(paymentResult.Errors);
+
+        var payment = paymentResult.Value!;
+
+        // ── 5. TX 1: reserve stock, redeem coupon, persist order + payment ─
+        var stockRequests = ToStockRequests(cart.Items);
+
+        var persisted = await unitOfWork.ExecuteInTransactionAsync(async token =>
+        {
+            var stock = await stockRepository.TryReserveAsync(stockRequests, token);
+            if (stock.IsFailure)
+                return stock;
+
+            if (coupon is not null && !await couponRepository.TryRedeemAsync(coupon.Id, now, token))
+                return Result.Failure(
+                    Error.Conflict("Coupon.Exhausted", "Coupon has reached its usage limit."));
+
+            await orderRepository.AddAsync(order, token);
+            await paymentRepository.AddAsync(payment, token);
+            await unitOfWork.SaveChangesAsync(token);
+
+            return Result.Success();
+        }, cancellationToken);
+
+        if (persisted.IsFailure)
+            return Fail(persisted.Errors);
+
+        // ── 6. Stripe (outside the DB transaction) ───────────────────────
         CreateCheckoutSessionResult session;
         try
         {
@@ -124,64 +150,88 @@ public sealed class CheckoutHandler(
                     CustomerId: customerId,
                     StoreId: request.StoreId,
                     Amount: order.Total,
-                    Currency: "usd",
-                    SuccessUrl: string.Empty,
+                    Currency: Currency.ToLowerInvariant(),
+                    SuccessUrl: string.Empty, // StripePaymentService falls back to StripeSettings
                     CancelUrl: string.Empty,
+                    Description: $"Order {order.Id:N}",
                     CustomerEmail: customer.Email,
-                    Description: $"Order {order.Id:N}"),
+                    IdempotencyKey: order.Id.ToString("N")),
                 cancellationToken);
         }
-        catch
+        catch (Exception ex)
         {
-            order.Cancel("Payment session creation failed", ChangedByType.System);
-            await orderRepository.SaveChangesAsync(cancellationToken);
+            logger.LogError(ex, "Stripe session creation failed for order {OrderId}", order.Id);
+            await CompensateAsync(order, payment, "Payment session creation failed");
 
-            return Result<CheckoutResultDto>.Failure(
-                Error.Failure(
-                    "Checkout.PaymentProviderError",
-                    "Could not start payment session. Please try again."));
+            return Fail(Error.Failure(
+                "Checkout.PaymentProviderError",
+                "Could not start payment session. Please try again."));
         }
 
-        var stripeRef = string.IsNullOrWhiteSpace(session.PaymentIntentId)
-            ? session.SessionId
-            : session.PaymentIntentId;
-
-        var paymentResult = Payment.Create(
-            order.Id,
-            stripeRef,
-            order.Total,
-            provider: "Stripe",
-            currency: "USD",
-            providerMetadata: $"{{\"session_id\":\"{session.SessionId}\"}}");
-
-        if (paymentResult.IsFailure)
+        // ── 7. TX 2: link the session to the payment, then clear the cart ─
+        var attached = payment.AttachCheckoutSession(session.SessionId, session.PaymentIntentId);
+        if (attached.IsFailure)
         {
-            order.Cancel("Payment record creation failed", ChangedByType.System);
-            await orderRepository.SaveChangesAsync(cancellationToken);
-            return Result<CheckoutResultDto>.Failure(paymentResult.Errors);
+            logger.LogError("Stripe returned an unusable session for order {OrderId}: {@Errors}",
+                order.Id, attached.Errors);
+            await CompensateAsync(order, payment, "Payment session was invalid");
+
+            return Fail(Error.Failure(
+                "Checkout.PaymentProviderError",
+                "Could not start payment session. Please try again."));
         }
-
-        var payment = paymentResult.Value!;
-        if (!string.IsNullOrWhiteSpace(session.PaymentIntentId))
-            payment.SetStripeReference(session.SessionId, session.PaymentIntentId);
-
-        paymentRepository.Add(payment);
-        await paymentRepository.SaveChangesAsync(cancellationToken);
 
         var domainCart = await cartRepository.GetByCustomerAndStoreAsync(
             customerId, request.StoreId, cancellationToken);
-        if (domainCart is not null)
-        {
-            domainCart.Clear();
-            await cartRepository.SaveChangesAsync(cancellationToken);
-        }
+        domainCart?.Clear();
+
+        // One SaveChanges => payment update + cart clear are atomic.
+        // If this throws, the webhook still finds the payment via ClientReferenceId (order id)
+        // and the Stripe session expiry releases the reservation.
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<CheckoutResultDto>.Success(
             new CheckoutResultDto(order.Id, session.CheckoutUrl, session.SessionId));
     }
 
-    private static List<Error> ValidateAvailability(
-        IReadOnlyList<CheckoutCartItemDto> items)
+    // ════════════════════════════════════════════════════════════════════
+    //  COMPENSATION (TX 3)
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Undoes TX 1 after a downstream failure. Never throws: the caller must see the original error.
+    /// Stock is released from the persisted order items; the coupon from order.CouponId.
+    /// </summary>
+    private async Task CompensateAsync(Order order, Payment payment, string reason)
+    {
+        try
+        {
+            await unitOfWork.ExecuteInTransactionAsync(async token =>
+            {
+                order.Cancel(reason, ChangedByType.System);
+                payment.MarkFailed(reason);
+
+                await stockRepository.ReleaseForOrderAsync(order.Id, token);
+
+                if (order.CouponId is { } couponId)
+                    await couponRepository.ReleaseRedemptionAsync(couponId, token);
+
+                await unitOfWork.SaveChangesAsync(token);
+                return Result.Success();
+            }, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            logger.LogCritical(
+                ex, "Compensation failed for order {OrderId}; manual cleanup required", order.Id);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  VALIDATION
+    // ════════════════════════════════════════════════════════════════════
+
+    private static List<Error> ValidateAvailability(IReadOnlyList<CheckoutCartItemDto> items)
     {
         var errors = new List<Error>();
 
@@ -195,14 +245,58 @@ public sealed class CheckoutHandler(
                 continue;
             }
 
-            foreach (var opt in item.Options.Where(o => !o.IsAvailable))
-            {
-                errors.Add(Error.Validation(
+            errors.AddRange(item.Options
+                .Where(o => !o.IsAvailable)
+                .Select(o => Error.Validation(
                     "Checkout.OptionUnavailable",
-                    $"Option '{opt.NameEn}' on '{item.NameEn}' is no longer available."));
-            }
+                    $"Option '{o.NameEn}' on '{item.NameEn}' is no longer available.")));
         }
 
         return errors;
     }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  MAPPING
+    // ════════════════════════════════════════════════════════════════════
+
+    private static List<PricedLine> ToPricedLines(IReadOnlyList<CheckoutCartItemDto> items)
+        => items
+            .Select(i => new PricedLine(i.UnitPrice, i.FinalUnitPrice, i.Quantity, i.OptionsTotal))
+            .ToList();
+
+    /// <summary>
+    /// Lines carry the BASE unit price; item discounts travel in Order.DiscountTotal
+    /// (DB rule: total = subtotal - discount_total).
+    /// </summary>
+    private static List<OrderLineInput> ToOrderLines(IReadOnlyList<CheckoutCartItemDto> items)
+        => items
+            .Select(i => new OrderLineInput(
+                i.ProductId,
+                i.NameEn,
+                i.NameAr,
+                i.UnitPrice,
+                i.Quantity,
+                i.Options
+                    .Select(o => new OrderOptionInput(o.NameEn, o.NameAr, o.PriceAdjustment))
+                    .ToList()))
+            .ToList();
+
+    private static List<StockRequest> ToStockRequests(IReadOnlyList<CheckoutCartItemDto> items)
+        => items
+            .Where(i => i.TrackInventory)
+            .GroupBy(i => i.ProductId)
+            .Select(g => new StockRequest(g.Key, g.Sum(i => i.Quantity)))
+            .ToList();
+
+    private static string BuildDeliveryName(Customer customer)
+        => $"{customer.FirstName} {customer.LastName}".Trim();
+
+    private static string? NormalizePhone(string? phone)
+        => string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
+
+    private static Result<CheckoutResultDto> Fail(Error error)
+        => Result<CheckoutResultDto>.Failure(error);
+
+    private static Result<CheckoutResultDto> Fail(IReadOnlyList<Error> errors)
+        => Result<CheckoutResultDto>.Failure(errors);
 }

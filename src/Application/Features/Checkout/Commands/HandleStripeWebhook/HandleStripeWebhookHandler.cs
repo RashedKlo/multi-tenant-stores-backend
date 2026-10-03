@@ -14,6 +14,9 @@ public sealed class HandleStripeWebhookHandler(
     IStripeWebhookService stripeWebhook,
     IPaymentRepository paymentRepository,
     IOrderRepository orderRepository,
+    ICouponRepository couponRepository,
+    IStockRepository stockRepository,
+    IUnitOfWork unitOfWork,
     ILogger<HandleStripeWebhookHandler> logger)
     : IRequestHandler<HandleStripeWebhookCommand, Result>
 {
@@ -53,13 +56,13 @@ public sealed class HandleStripeWebhookHandler(
         }
 
         if (!string.IsNullOrWhiteSpace(e.PaymentIntentId))
-            payment.SetStripeReference(e.SessionId, e.PaymentIntentId);
+          payment.AttachCheckoutSession(e.SessionId, e.PaymentIntentId);
 
         var payResult = payment.MarkSucceeded();
+
         if (payResult.IsFailure)
             return payResult;
 
-        paymentRepository.Update(payment);
 
         var order = await orderRepository.GetByIdAsync(payment.OrderId, ct);
         if (order is not null)
@@ -69,28 +72,35 @@ public sealed class HandleStripeWebhookHandler(
                 return confirm;
         }
 
-        await orderRepository.SaveChangesAsync(ct);
+        await unitOfWork.SaveChangesAsync(ct);
         return Result.Success();
     }
 
     private async Task<Result> OnCheckoutFailedAsync(
-        CheckoutSessionFailedWebhook e, CancellationToken ct)
+    CheckoutSessionFailedWebhook e, CancellationToken ct)
+{
+    var payment = await FindPaymentAsync(e.SessionId, e.PaymentIntentId, e.ClientReferenceId, ct);
+    if (payment is null || payment.Status == PaymentStatus.Succeeded)
+        return Result.Success();
+
+    return await unitOfWork.ExecuteInTransactionAsync(async token =>
     {
-        var payment = await FindPaymentAsync(e.SessionId, e.PaymentIntentId, e.ClientReferenceId, ct);
-        if (payment is null || payment.Status == PaymentStatus.Succeeded)
-            return Result.Success();
-
         payment.MarkFailed(e.FailureReason);
-        paymentRepository.Update(payment);
 
-        var order = await orderRepository.GetByIdAsync(payment.OrderId, ct);
+        var order = await orderRepository.GetByIdAsync(payment.OrderId, token);
         if (order is not null && order.Status == OrderStatus.Pending)
+        {
             order.Cancel($"Checkout ended without payment ({e.FailureReason})", ChangedByType.System);
 
-        await orderRepository.SaveChangesAsync(ct);
-        return Result.Success();
-    }
+            await stockRepository.ReleaseForOrderAsync(order.Id, token);
+            if (order.CouponId is { } couponId)
+                await couponRepository.ReleaseRedemptionAsync(couponId, token);
+        }
 
+        await unitOfWork.SaveChangesAsync(token);
+        return Result.Success();
+    }, ct);
+}
     private async Task<Result> OnPaymentIntentFailedAsync(
         PaymentIntentFailedWebhook e, CancellationToken ct)
     {
@@ -99,7 +109,6 @@ public sealed class HandleStripeWebhookHandler(
             return Result.Success();
 
         payment.MarkFailed(e.FailureMessage);
-        paymentRepository.Update(payment);
         await paymentRepository.SaveChangesAsync(ct);
         return Result.Success();
     }
@@ -107,17 +116,8 @@ public sealed class HandleStripeWebhookHandler(
     private async Task<Payment?> FindPaymentAsync(
         string sessionId, string? paymentIntentId, string? clientReferenceId, CancellationToken ct)
     {
-        if (!string.IsNullOrWhiteSpace(paymentIntentId))
-        {
-            var byPi = await paymentRepository.GetByStripePaymentIntentIdAsync(paymentIntentId, ct);
-            if (byPi is not null) return byPi;
-        }
-
-        var bySession = await paymentRepository.GetByStripePaymentIntentIdAsync(sessionId, ct);
+         var bySession = await paymentRepository.GetByStripeSessionIdAsync(sessionId, ct);
         if (bySession is not null) return bySession;
-
-        if (Guid.TryParse(clientReferenceId, out var orderId))
-            return await paymentRepository.GetByOrderIdAsync(orderId, ct);
 
         return null;
     }
